@@ -8,13 +8,16 @@ A package for generating .rst documents with Python commands.
 """
 
 from pathlib import Path
-from textwrap import TextWrapper
 import subprocess
 import shutil
+import re
 
 __version__ = "1.0.0"
 
 
+####################################################################################################
+# RstDocument
+####################################################################################################
 class RstDocument:
 
     def __init__(self, name, width=72, headings_numbered_from_level=None, is_default_document=False):
@@ -26,20 +29,24 @@ class RstDocument:
         :param bool is_default_document: if True any RstItem created without specifying a document will
             automatically be added to this RstDocument.
         """
+        self.items = []
         self.name = name
+
+
         self.heading_numbers = 6*[-1]
         self.headings_numbered_from_level = 6 # = no numbering of headings
-        
+
         self.width = width
         self.set_textwrapper()
+
         if headings_numbered_from_level < 6:
             self.headings_numbered_from_level = headings_numbered_from_level
             for l in range(headings_numbered_from_level,6):
                 self.heading_numbers[l] = 0
-        self.items = []
         self.verbose = False
         if is_default_document:
             RstItem.default_document = self
+
 
 
     def append(self, item):
@@ -49,11 +56,7 @@ class RstDocument:
     def set_textwrapper(self, textwrapper=None):
         """Set a TextWrapper object for the RstDocument"""
         if textwrapper is None:
-            self.textwrapper = TextWrapper( width=self.width
-                                          , replace_whitespace=True
-                                          , break_long_words=False
-                                          , break_on_hyphens=False
-                                          )
+            self.textwrapper = TextWrapper(width=self.width)
         elif isinstance(textwrapper,TextWrapper):
             self.textwrapper = textwrapper
         else:
@@ -85,6 +88,9 @@ class RstDocument:
             f.write(str(self))
 
 
+####################################################################################################
+# Base classes
+####################################################################################################
 class RstItem():
     """Base class for items to be added to an RstDocument."""
     default_document = None
@@ -243,10 +249,15 @@ class List(RstItem):
 # CodeBlock
 ####################################################################################################
 class CodeBlock(RstItem):
+    default_prompts = { 'bash': '> '
+                      , 'python': ''
+                      , 'python-interpreter': '>>> '
+                      }
 
     def __init__( self, lines
                 , language='', execute=False
-                , prompt='', indent=4
+                , indent=4
+                , prompt=None
                 , cwd='.', setup=None, cleanup=None
                 , document = None
                 ):
@@ -264,7 +275,12 @@ class CodeBlock(RstItem):
         super().__init__(document=document)
         self.lines = listify(lines)
         self.language = language
-        self.prompt = prompt
+
+        if prompt is None:
+            self.prompt = CodeBlock.default_prompts.get(language,'')
+        else:
+            self.prompt = prompt
+
         self.indent = indent*' '
         self.execute = execute
         self.cwd = cwd
@@ -296,7 +312,7 @@ class CodeBlock(RstItem):
         else:
             text = f'.. code-block:: {self.language}\n\n'
             for line in self.lines:
-                text += f'{self.indent}{line}\n'
+                text += f'{self.indent}{self.prompt}{line}\n'
 
         text += '\n'
         return text
@@ -345,3 +361,111 @@ class RemoveDir:
     def __call__(self):
         if self.pdir.is_dir():
             shutil.rmtree(self.pdir)
+
+
+def package_name_of(project_name):
+    """
+    :param str project_name:
+    """
+    return project_name.lower().replace('-','_')
+
+
+class TextWrapper:
+    """Our own TextWrapper class.
+
+    textwrapper.TextWrapper is not able to keep inline formatted strings
+    together. E.g.::
+
+        Part of this text appears in **bold face**.
+
+    textwrapper.TextWrapper will first detect the words::
+
+        'Part', 'of', 'this', 'text', 'appears', 'in', '**bold', 'face**.'
+
+    and then combine them back into words.
+    If the word '**bold' appears at the end of the line, there is a chance
+    that the next word 'face**' will appear only on the next line, which
+    destroys the intended formatting restructuredText.
+
+    Patterns that need to be kept together:
+
+    * '*italics text*
+    * '**bold face text**'
+    * ``inline monospace``
+    * links: `text <url>`_
+    * things like :file:`may occasionally contain spaces`, are ignored for the time being.
+
+    Note that these patterns may be followed with punctuation: . , : ; ... ? ! ) ] } ' "
+    """
+    patterns = \
+    ( ( re.compile(r"\A\*(\w+)")  , re.compile(r"(\w+)\*([,.:;!?\"\')}]?|(\.\.\.))\Z") )    # italics
+    , ( re.compile(r"\A\*\*(\w+)"), re.compile(r"(\w+)\*\*([,.:;!?\"\')}]?|(\.\.\.))\Z") )  # bold face
+    , ( re.compile(r"\A``(\w+)")  , re.compile(r"(\w+)``([,.:;!?\"\')}]?|(\.\.\.))\Z") )    # inline code sample
+    , ( re.compile(r"\A`(\w+)")                                                             # hyperlink
+      , re.compile(r"<(((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z]){2,6}([a-zA-Z0-9\.\&\/\?\:@\-_=#])*)>`_([,.:;!?\"\')}]?|(\.\.\.))\Z") )
+    )
+
+    def __init__(self,width=72):
+        """"""
+        self.width = width
+        self.lookahead = 5
+
+    def wrap(self, text):
+        """"""
+        # split text in words
+        words = text.split(' ')
+
+        # join words that should not have been split
+        n = len(words)
+        i = 0
+        while i < n:
+            word0 = words[i]
+            found = False
+            for p in TextWrapper.patterns:
+                if found:
+                    break
+                m0 = p[0].match(word0)
+                if m0:
+                    # begin of pattern found
+                    for j in range(1,self.lookahead+1):
+                        if i+j >= n:
+                            break
+                        word1 = words[i+j]
+                        m1 = p[1].match(word1)
+                        if m1:
+                            # end of pattern found, append all words to the wo
+                            words[i] = ' '.join(words[i:i+j+1])
+                            # pop the words that were appended to words[i]
+                            for k in range(j):
+                                words.pop(i+1)
+                                n -= 1
+                            found = True
+                            break
+            # print(words[i]) # for debugging
+            i += 1
+
+        # build lines out of the words
+        lines = []
+        i = 0
+        i0 = i
+        space_left = self.width
+        while i < n:
+            word_len = len(words[i])
+            if word_len > self.width: # a very long word
+                if i0 < i:
+                    lines.append(' '.join(words[i0:i]))
+                    lines.append(words[i])
+                    # print(lines[-2])
+                    # print(lines[-1])
+                    i0 = i+1
+                    space_left = self.width
+            else:
+                space_left -= word_len
+                if space_left < 0:
+                    lines.append(' '.join(words[i0:i]))
+                    # print(lines[-1])
+                    i0 = i
+                    space_left = self.width - word_len
+            i += 1
+        lines.append(' '.join(words[i0:]))
+        return lines
