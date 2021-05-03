@@ -11,6 +11,10 @@ from pathlib import Path
 import subprocess
 import shutil
 import re
+from contextlib import redirect_stdout, contextmanager
+import io
+import sys
+import os
 
 __version__ = "1.1.0"
 
@@ -31,7 +35,6 @@ class RstDocument:
         """
         self.items = []
         self.name = name
-
 
         self.heading_numbers = 6*[-1]
         self.headings_numbered_from_level = 6 # = no numbering of headings
@@ -258,7 +261,7 @@ class CodeBlock(RstItem):
                 , language='', execute=False
                 , indent=4
                 , prompt=None
-                , cwd='.', setup=None, cleanup=None
+                , cwd='.', setup=None, cleanup=None, copyto=None
                 , document = None
                 ):
         """
@@ -286,6 +289,7 @@ class CodeBlock(RstItem):
         self.cwd = cwd
         self.setup = setup
         self.cleanup = cleanup
+        self.copyto = copyto
 
     def __str__(self):
         text = f'.. code-block:: {self.language}\n\n'
@@ -293,19 +297,37 @@ class CodeBlock(RstItem):
         if self.execute:
             if self.setup:
                 self.setup()
-            for line in self.lines:
-                text += f'{self.indent}{self.prompt}{line}\n'
-                # execute the command and add its output
-                if self.language == 'bash':
-                    cmd = line.split(' ')
-                    completed_process = subprocess.run( cmd, cwd=self.cwd
+            if self.language == 'bash':
+                for line in self.lines:
+                    text += f'{self.indent}{self.prompt}{line}\n'
+                    # execute the command and add its output
+                    completed_process = subprocess.run( line.split(' ')
+                                                      , cwd=self.cwd
                                                       , stdout=subprocess.PIPE
                                                       , stderr=subprocess.STDOUT
                                                       )
                     output = self.indent + completed_process.stdout.decode('utf-8').replace('\n', '\n'+self.indent)
+                    if completed_process.returncode:
+                        print(output)
+                        raise RuntimeError()
                     text += output+'\n'
-                else:
-                    raise NotImplementedError()
+
+            elif self.language == 'python-interpreter':
+                sys.path.insert(0,'.')
+                with in_directory(self.cwd):
+                    output = ''
+                    for line in self.lines:
+                        f = io.StringIO()
+                        with redirect_stdout(f):
+                            output += f"{self.prompt}{line}\n"
+                            exec(line)
+                            output += f.getvalue()
+
+                    output = self.indent + output.replace('\n', '\n' + self.indent)
+                    text += '\n>>>\n' + output + '\n'
+
+            else:
+                raise NotImplementedError()
 
             if self.cleanup:
                 self.cleanup()
@@ -315,6 +337,13 @@ class CodeBlock(RstItem):
                 text += f'{self.indent}{self.prompt}{line}\n'
 
         text += '\n'
+
+        if self.copyto:
+            p = self.cwd / self.copyto
+            with p.open(mode='w') as f:
+                for line in self.lines:
+                    f.write(line + '\n')
+
         return text
 
 
@@ -469,3 +498,16 @@ class TextWrapper:
             i += 1
         lines.append(' '.join(words[i0:]))
         return lines
+
+
+@contextmanager
+def in_directory(path):
+    """Context manager for changing the current working directory while the body of the
+    context manager executes.
+    """
+    previous_dir = os.getcwd()
+    os.chdir(str(path)) # the str method takes care of when path is a Path object
+    try:
+        yield os.getcwd()
+    finally:
+        os.chdir(previous_dir)

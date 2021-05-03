@@ -763,13 +763,18 @@ def test_Tutorial1():
         "the :file:`docs` directory. To generate documentation in html format, run:"
     )
     CodeBlock(
-        "micc2 docs html"
-        , language='bash', prompt='(.venv-my-first-project) > '
+        "micc2 doc", language='bash', prompt='(.venv-my-first-project) > '
     )
     Paragraph(
-        "This will generate documentation in :file:`et-dot/docs/_build/html`. "
-        "The default html theme for this is sphinx_rtd_theme_. To view "
-        "the documentation open the file :file:`et-dot/docs/_build/html/index.html`. "
+        "This will generate documentation in html format in directory "
+        ":file:`et-dot/docs/_build/html`. The default html theme for this is "
+        "sphinx_rtd_theme_. To view the documentation open the file "
+        ":file:`et-dot/docs/_build/html/index.html` in your favorite browser . "
+        "Other formats than html are available, but your might have to install "
+        "addition packages. To list all available documentation formats run:"
+    )
+    CodeBlock(
+        [ "micc2 doc help"], language='bash'
     )
     Paragraph(
         "The boilerplate code for documentation generation is in the :file:`docs` directory, "
@@ -824,31 +829,196 @@ def test_Tutorial1():
     Heading('License', level=4, crosslink='license')
 
     Paragraph(
-        "The project directory contains a :file:`LICENCE` file, a :file:`text` file "
-        "describing the licence applicable to your project. You can choose between:"
+        "When you set up Micc2 you can select the default license for your Micc2_ projects. "
+        "You can choose between:"
     )
     List(
-        [ 'MIT license,'
-        , 'BSD license,'
-        , 'ISC license,'
-        , 'Apache Software License 2.0,'
-        , 'GNU General Public License v3, and'
-        , 'Not open source.'
+        [ 'MIT license'
+        , 'BSD license'
+        , 'ISC license'
+        , 'Apache Software License 2.0'
+        , 'GNU General Public License v3'
+        , 'Not open source'
         ]
     )
     Paragraph(
-        "When you set up Micc2 you can select the default license for your Micc2_ projects. "
-        "You can always overwrite the default option when you create a project:"
+        "If you’re unsure which license to choose, you can use resources such as "
+        "`GitHub’s Choose a License <https://choosealicense.com>`_. "
+        "You can always overwrite the default chosen when you create a project. "
+        "The first characters suffice to select the license:"
     )
     CodeBlock(
-        "micc2 --software-license=create"
+        "micc2 --software-license=BSD create"
+    )
+    Paragraph(
+        "The project directory will contain a :file:`LICENCE` file, a plain text file "
+        "describing the license applicable to your project."
+    )
+
+    Heading('The pyproject.toml file', level=4, crosslink='_pyproject-toml')
+
+    Paragraph(
+        "Micc2_ maintains a :file:`pyproject.toml` file in the project directory. "
+        "This is the modern way to describe the build system requirements of a project "
+        "(see `PEP 518 <https://www.python.org/dev/peps/pep-0518/>`_ ). Although this "
+        "file's content is generated automatically some understanding of it is useful "
+        "(checkout https://poetry.eustace.io/docs/pyproject/). "
+    )
+    Paragraph(
+        "In Micc2_'s predecessor, Micc_, Poetry_ was used extensively for creating "
+        "virtual environments and managing a project's dependencies. However, at the "
+        "time of writing, Poetry_ still fails to create virtual environments which honor"
+        "the ``--system-site-packages``. This causes serious problems on HPC clusters, and "
+        "consequently, we do not recommend the use of poetry_ when your projects have to "
+        "run on HPC clusters. As long as this issue remains, we recommend to add a project's "
+        "dependencies manually in the :file:`pyproject.toml` file, so that when someone "
+        "would install your project with Pip_, its dependendies are installed with it. "
+        "Poetry_ remains indeed very useful for publishing your project to PyPI_ from your "
+        "desktop or laptop. "
+    )
+    Paragraph(
+        "The :file:`pyproject.toml` file is rather human-readable. Most entries are trivial. "
+        "There is a section for dependencies ``[tool.poetry.dependencies]``, development "
+        "dependencies ``[tool.poetry.dev-dependencies]``. You can maintain these manually. "
+        "There is also a section for CLIs ``[tool.poetry.scripts]`` which is updated "
+        "automatically whenever you add a CLI through Micc2_. "
+    )
+    CodeBlock(
+        [ '> cat pyproject.toml'
+        , ''
+        , '[tool.poetry]'
+        , 'name = "my-first-project"'
+        , 'version = "0.0.0"'
+        , 'description = "My first micc2 project"'
+        , 'authors = ["John Doe <john.doe@example.com>"]'
+        , 'license = "MIT"'
+        , ''
+        , 'readme = \'Readme.rst\''
+        , ''
+        , 'repository = "https://github.com/jdoe/my-first-project"'
+        , 'homepage = "https://github.com/jdoe/my-first-project"'
+        , ''
+        , '[tool.poetry.dependencies]'
+        , 'python = "^3.7"'
+        , ''
+        , '[tool.poetry.dev-dependencies]'
+        , ''
+        , '[tool.poetry.scripts]'
+        , ''
+        , '[build-system]'
+        , 'requires = ["poetry>=0.12"]'
+        , 'build-backend = "poetry.masonry.api"'
+        ]
+        , language='bash', prompt=''
+    )
+
+def test_Tutorial1_4():
+    """Tutorial-1."""
+
+    workspace = Path.home() / 'software/dev/workspace/Tutorials'
+    if workspace.exists():
+        shutil.rmtree(workspace)
+    workspace.mkdir(parents=True, exist_ok=True)
+
+    doc = RstDocument('Tutorial-1.4', headings_numbered_from_level=2, is_default_document=True)
+
+    Include('../HYPERLINKS.rst')
+
+    Heading('A first real project',level=3, crosslink='first-project')
+
+    Paragraph(
+        "Let's start with a simple problem: a Python module that computes the "
+        "`scalar product of two arrays <https://en.wikipedia.org/wiki/Dot_product>`_, "
+        "generally referred to as the *dot product*. Admittedly, this not a very "
+        "rewarding goal, as there are already many Python packages, e.g. Numpy_, "
+        "that solve this problem in an elegant and efficient way. However, because "
+        "the dot product is such a simple concept in linear algebra, it allows us to "
+        "illustrate the usefulness of Python as a language for HPC, as well as the "
+        "capabilities of Micc2_."
+    )
+    Paragraph(
+        "First, we set up a new project for this *dot* project, with the name "
+        ":file:`ET-dot`, ET being my initials (check out :ref:`project-and-module-naming)`. "
+        "Not knowing beforehand how involved this project will become, "
+        "we create a simple *module* project without a remote Github_ repository:"
+    )
+    project_name = 'ET-dot'
+    project_path = workspace / project_name
+    CodeBlock(
+        f'micc2 create {project_name} --remote=none'
+        , language='bash', execute=True, cwd=workspace
+    )
+    Paragraph(
+        "We ``cd`` into the project directory, so Micc2_ knows is as the current project."
+    )
+    CodeBlock(
+        'cd ET-dot'
+        , language='bash'
+    )
+    Paragraph(
+        "Now, open module file :file:`et_dot.py` in your favourite editor and start coding "
+        "a dot product method as below. The example code created by Micc2_ can be removed."
+    )
+    CodeBlock(
+        [ '# -*- coding: utf-8 -*-'
+        , '"""'
+        , 'Package et_dot'
+        , '=============='
+        , 'Python module for computing the dot product of two arrays.'
+        , '"""'
+        , '__version__ = "0.0.0"'
+        , ''
+        , 'def dot(a,b):'
+        , '    """Compute the dot product of *a* and *b*.'
+        , ''
+        , '    :param a: a 1D array.'
+        , '    :param b: a 1D array of the same length as *a*.'
+        , '    :returns: the dot product of *a* and *b*.'
+        , '    :raises: ValueError if ``len(a)!=len(b)``.'
+        , '    """'
+        , '    n = len(a)'
+        , '    if len(b)!=n:'
+        , '        raise ValueError("dot(a,b) requires len(a)==len(b).")'
+        , '    result = 0'
+        , '    for i in range(n):'
+        , '        result += a[i]*b[i]'
+        , '    return result'
+        ]
+        , language='python', cwd=project_path, copyto='et_dot.py'
+    )
+    Paragraph(
+        "We defined a :py:meth:`dot` method with an informative doc-string that describes "
+        "the parameters, the return value and the kind of exceptions it may raise."
+    )
+    Paragraph(
+        "We could use the dot method in a script as follows:"
+    )
+    CodeBlock(
+        [ 'from et_dot import dot'
+        , ''
+        , 'a = [1,2,3]'
+        , 'b = [4.1,4.2,4.3]'
+        , 'a_dot_b = dot(a,b)'
+        ]
+        , language='python', prompt='', cwd=project_path
+    )
+    Paragraph(
+        'Or we might execute these lines at the Python prompt:'
+    )
+    CodeBlock(
+        ['from et_dot import dot'
+
+    , 'a = [1,2,3]'
+        , 'b = [4.1,4.2,4.3]'
+        , 'a_dot_b = dot(a,b)'
+        , 'print(a_dot_b)'
+        ]
+        , language='python-interpreter', execute=True, cwd=project_path
     )
     """
-
-    MIT license is a very liberal license and the default option. If you’re unsure which
-    license to choose, you can use resources such as `GitHub’s Choose a License <https://choosealicense.com>`_
-
-    You can select the license file when you create the project:
+   
+   
+   a_dot_b = dot(a,b)
     """
     doc.verbose = True
     print('>>>>>>')
@@ -877,7 +1047,7 @@ def test_TextWrapper():
 # that the source directory is on the path
 # ==============================================================================
 if __name__ == "__main__":
-    the_test_you_want_to_debug = test_Tutorial1
+    the_test_you_want_to_debug = test_Tutorial1_4
 
     print("__main__ running", the_test_you_want_to_debug)
     the_test_you_want_to_debug()
