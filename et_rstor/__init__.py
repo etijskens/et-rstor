@@ -11,12 +11,13 @@ from pathlib import Path
 import subprocess
 import shutil
 import re
-from contextlib import redirect_stdout, contextmanager
+from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io
 import sys
 import os
+import traceback
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 
 ####################################################################################################
@@ -79,15 +80,13 @@ class RstDocument:
         return result
 
 
-    def write(self, path='.', ext='.rst'):
+    def write(self, path='.'):
         """Write the document to a file.
 
         :param (Path,str) path: directory to create the file in.
         """
 
-        f = s if filename.endswith(ext) else filename+ext
-        p = Path(path) / f
-        with p.open(mode='w') as f:
+        with path.open(mode='w') as f:
             f.write(str(self))
 
 
@@ -230,20 +229,21 @@ class Include(RstItem):
 # List
 ####################################################################################################
 class List(RstItem):
-    def __init__(self, items, numbered=False, document=None):
+    def __init__(self, items, numbered=False, indent=0, document=None):
         """List item, bulleted or numbered"""
         super().__init__(document=document)
         self.items = listify(items)
         self.numbered = numbered
+        self.indent = indent*' '
 
     def __str__(self):
-        bullet = '#' if self.numbered else '*'
+        bullet, indent2 = ('#.','  ') if self.numbered else ('*',' ')
         text = ''
         for item in self.items:
             lines = self.document.textwrapper.wrap(item)
-            text += f'{bullet} {lines[0]}\n'
+            text += f'{self.indent}{bullet} {lines[0]}\n'
             for line in lines[1:]:
-                text += f'  {line}\n'
+                text += f'{self.indent}{indent2} {line}\n'
             text += '\n'
         return text
 
@@ -261,7 +261,8 @@ class CodeBlock(RstItem):
                 , language='', execute=False
                 , indent=4
                 , prompt=None
-                , cwd='.', setup=None, cleanup=None, copyto=None
+                , cwd='.', setup=None, cleanup=None, copyto=None, append=False
+                , error_ok=False
                 , document = None
                 ):
         """
@@ -274,6 +275,8 @@ class CodeBlock(RstItem):
         :param indent: indentation of the code-block
         :param callable() setup: function that has to be executed before the command lines.
         :param callable() cleanup: function that has to be executed before the command lines.
+        :param Path copyto: copy the code to this file.
+        :param bool append: append the code to copyto instead of copy.
         """
         super().__init__(document=document)
         self.lines = listify(lines)
@@ -290,6 +293,9 @@ class CodeBlock(RstItem):
         self.setup = setup
         self.cleanup = cleanup
         self.copyto = copyto
+        self.append = append
+        self.error_ok = error_ok
+
 
     def __str__(self):
         text = f'.. code-block:: {self.language}\n\n'
@@ -301,13 +307,14 @@ class CodeBlock(RstItem):
                 for line in self.lines:
                     text += f'{self.indent}{self.prompt}{line}\n'
                     # execute the command and add its output
-                    completed_process = subprocess.run( line.split(' ')
+                    completed_process = subprocess.run( line
                                                       , cwd=self.cwd
                                                       , stdout=subprocess.PIPE
                                                       , stderr=subprocess.STDOUT
+                                                      , shell=True
                                                       )
                     output = self.indent + completed_process.stdout.decode('utf-8').replace('\n', '\n'+self.indent)
-                    if completed_process.returncode:
+                    if completed_process.returncode and not self.error_ok:
                         print(output)
                         raise RuntimeError()
                     text += output+'\n'
@@ -319,8 +326,15 @@ class CodeBlock(RstItem):
                     for line in self.lines:
                         f = io.StringIO()
                         with redirect_stdout(f):
+                            # with redirect_stderr(f):
                             output += f"{self.prompt}{line}\n"
-                            exec(line)
+                            try:
+                                exec(line)
+                            except:
+                                if self.error_ok:
+                                    print(traceback.format_exc())
+                                else:
+                                    raise
                             output += f.getvalue()
 
                     output = self.indent + output.replace('\n', '\n' + self.indent)
@@ -334,13 +348,15 @@ class CodeBlock(RstItem):
         else:
             text = f'.. code-block:: {self.language}\n\n'
             for line in self.lines:
-                text += f'{self.indent}{self.prompt}{line}\n'
+                if not line.endswith('#hide#'):
+                    text += f'{self.indent}{self.prompt}{line}\n'
 
         text += '\n'
 
-        if self.copyto:
-            p = self.cwd / self.copyto
-            with p.open(mode='w') as f:
+        if self.copyto :
+            self.copyto.parent.mkdir(parents=True,exist_ok=True)
+            mode = 'a+' if self.append else 'w'
+            with self.copyto.open(mode=mode) as f:
                 for line in self.lines:
                     f.write(line + '\n')
 

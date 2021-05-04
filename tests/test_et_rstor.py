@@ -6,6 +6,7 @@ from et_rstor import *
 from pathlib import Path
 import os
 
+write = True
 
 def test_Tutorial1():
     """Tutorial-1."""
@@ -267,12 +268,12 @@ def test_Tutorial1():
     )
     CodeBlock(
         "micc2 create oops --publish"
-        , language='bash', execute=True, cwd=workspace
+        , language='bash', execute=True, cwd=workspace, error_ok=True
     )
     Paragraph(
         "As there are indeed hundreds of thousands of Python packages published on PyPI_, "
         "finding a good name has become quite hard. Personally, I often use a simple and "
-        "short descriptive name, prefixed by my initials, :filee:`et-`, which usually makes "
+        "short descriptive name, prefixed by my initials, :file:`et-`, which usually makes "
         "the name unique. E.g :file:`et-oops` does not exist. This has the additional "
         "advantage that all my published modules are grouped in the alphabetic PyPI_ listing."
     )
@@ -293,7 +294,7 @@ def test_Tutorial1():
     )
     CodeBlock(
         "micc create 1proj"
-        , language='bash', execute=True, cwd=workspace
+        , language='bash', execute=True, cwd=workspace, error_ok=True
     )
     Paragraph(
         "The last line indicates that you can specify an explicit module name, unrelated to "
@@ -306,7 +307,7 @@ def test_Tutorial1():
     Heading("The project path in Micc2", level=4, crosslink='micc-project-path')
 
     Paragraph(
-        "All micc_ commands accept the global ``--project-path=<path>`` parameter. "
+        "All micc2_ commands accept the global ``--project-path=<path>`` parameter. "
         "Global parameters appear *before* the subcommand name. E.g. the command:"
     )
     CodeBlock(
@@ -589,7 +590,7 @@ def test_Tutorial1():
         "Micc2_ has already taken care of this."
     )
 
-    Heading('Testing your code', level=4, crosslink='testing')
+    Heading('Testing your code', level=4, crosslink='testing-your-code')
 
     Paragraph(
         "`Test driven development <https://en.wikipedia.org/wiki/Test-driven_development>`_ is a "
@@ -603,7 +604,7 @@ def test_Tutorial1():
         "`testing with pytest <https://nedbatchelder.com/text/test3.html>`_."
     )
     Paragraph(
-        "When micc_ created project :file:`my-first-project`, it not only added a ``hello`` method "
+        "When Micc2_ created project :file:`my-first-project`, it not only added a ``hello`` method "
         "to the module file, it also created a test script for it in the :file:`tests` directory of "
         "the project directory. The testS for the :file:`my_first_project` module is in file "
         ":file:`tests/test_my_first_project.py`. Let's take a look at the relevant section:"
@@ -670,7 +671,7 @@ def test_Tutorial1():
         "cause of the failing test, you must use debugging and execute the failing "
         "test step by step to find out what is going wrong where. From the viewpoint "
         "of Pytest_, the files in the :file:`tests` directory are modules. Pytest_ "
-        "imports them and collects the test methods, and executes them. Micc_ also "
+        "imports them and collects the test methods, and executes them. Micc2_ also "
         "makes every test module executable using the "
         "Python ``if __name__ == \"__main__\":`` idiom described above. At the end "
         "of every test file you will find some extra code:"
@@ -712,10 +713,9 @@ def test_Tutorial1():
     )
     Paragraph(
         'Documentation is generated almost completely automatically from the source '
-        'code using `Sphinx <http://www.sphinx-doc.org/en/master/>`_. It is extracted '
-        'from the doc-strings in your code. Doc-strings are the text between triple '
-        'double quote pairs in the examples above, e.g. ``"""This is a doc-string."""``.'
-        'Important doc-strings are:'
+        'code using Sphinx_. It is extracted from the doc-strings in your code. '
+        'Doc-strings are the text between triple double quote pairs in the examples above, '
+        'e.g. ``"""This is a doc-string."""``. Important doc-strings are:'
     )
     List(
         [ '*module* doc-strings: at the beginning of the module. Provides an overview of '
@@ -855,7 +855,7 @@ def test_Tutorial1():
         "describing the license applicable to your project."
     )
 
-    Heading('The pyproject.toml file', level=4, crosslink='_pyproject-toml')
+    Heading('The pyproject.toml file', level=4, crosslink='pyproject-toml')
 
     Paragraph(
         "Micc2_ maintains a :file:`pyproject.toml` file in the project directory. "
@@ -911,20 +911,29 @@ def test_Tutorial1():
         ]
         , language='bash', prompt=''
     )
+    doc.verbose = True
+    if write:
+        doc.write(Path.home()/'workspace/et-micc2/tutorials/TUTORIAL-1.rst')
+    else:
+        print('>>>>>>')
+        print(doc, end='')
+        print('<<<<<<')
 
-def test_Tutorial1_4():
-    """Tutorial-1."""
+
+def test_Tutorial2():
+    """Tutorial-2."""
 
     workspace = Path.home() / 'software/dev/workspace/Tutorials'
     if workspace.exists():
         shutil.rmtree(workspace)
     workspace.mkdir(parents=True, exist_ok=True)
 
-    doc = RstDocument('Tutorial-1.4', headings_numbered_from_level=2, is_default_document=True)
+    doc = RstDocument('Tutorial-2', headings_numbered_from_level=2, is_default_document=True)
+    doc.heading_numbers[2] += 1
 
     Include('../HYPERLINKS.rst')
 
-    Heading('A first real project',level=3, crosslink='first-project')
+    Heading('A first real project',level=2, crosslink='first-project')
 
     Paragraph(
         "Let's start with a simple problem: a Python module that computes the "
@@ -938,7 +947,7 @@ def test_Tutorial1_4():
     )
     Paragraph(
         "First, we set up a new project for this *dot* project, with the name "
-        ":file:`ET-dot`, ET being my initials (check out :ref:`project-and-module-naming)`. "
+        ":file:`ET-dot`, ``ET`` being my initials (check out :ref:`project-and-module-naming`). "
         "Not knowing beforehand how involved this project will become, "
         "we create a simple *module* project without a remote Github_ repository:"
     )
@@ -984,14 +993,25 @@ def test_Tutorial1_4():
         , '        result += a[i]*b[i]'
         , '    return result'
         ]
-        , language='python', cwd=project_path, copyto='et_dot.py'
+        , language='python', copyto=project_path/'et_dot.py'
     )
     Paragraph(
         "We defined a :py:meth:`dot` method with an informative doc-string that describes "
-        "the parameters, the return value and the kind of exceptions it may raise."
+        "the parameters, the return value and the kind of exceptions it may raise. If "
+        "you like, you can add a ``if __name__ == '__main__':`` clause for quick-and-dirty "
+        "testing or debugging (see :ref:`modules-and-scripts`). It is a good idea to commit "
+        "this implementation to the local git repository:"
+    )
+    CodeBlock(
+        "git commit -a -m 'implemented dot()'"
+        , language='bash', execute=True, cwd=project_path
     )
     Paragraph(
-        "We could use the dot method in a script as follows:"
+        "(If there was a remote GitHub repository, you could also push that commit ``git push``, "
+        "as to enable your colleagues to acces the code as well.)"
+    )
+    Paragraph(
+        "We can use the dot method in a script as follows:"
     )
     CodeBlock(
         [ 'from et_dot import dot'
@@ -1000,31 +1020,615 @@ def test_Tutorial1_4():
         , 'b = [4.1,4.2,4.3]'
         , 'a_dot_b = dot(a,b)'
         ]
-        , language='python', prompt='', cwd=project_path
+        , language='python'
     )
     Paragraph(
         'Or we might execute these lines at the Python prompt:'
     )
     CodeBlock(
         ['from et_dot import dot'
-
-    , 'a = [1,2,3]'
+        , 'a = [1,2,3]'
         , 'b = [4.1,4.2,4.3]'
         , 'a_dot_b = dot(a,b)'
-        , 'print(a_dot_b)'
+        , 'expected = 1*4.1 + 2*4.2 +3*4.3'
+        , 'print(f"a_dot_b = {a_dot_b} == {expected}")'
         ]
         , language='python-interpreter', execute=True, cwd=project_path
     )
+    Note(
+        'This dot product implementation is naive for several reasons:'
+    )
+    List(
+        [ 'Python is very slow at executing loops, as compared to Fortran or C++.'
+        , 'The objects we are passing in are plain Python :py:obj:`list`s. A :py:obj:`list` '
+          'is a very powerfull data structure, with array-like properties, but it is not '
+          'exactly an array. A :py:obj:`list` is in fact an array of pointers to Python '
+          'objects, and therefor list elements can reference anything, not just a numeric '
+          'value as we would expect from an array. With elements being pointers, looping '
+          'over the array elements implies non-contiguous memory access, another source of '
+          'inefficiency.'
+        , 'The dot product is a subject of Linear Algebra. Many excellent libraries have been '
+          'designed for this purpose. Numpy_ should be your starting point because it is well '
+          'integrated with many other Python packages. There is also '
+          '`Eigen <http://eigen.tuxfamily.org/index.php?title=Main_Page>`_, a C++ template '
+          'library for linear algebra that is neatly exposed to Python by pybind11_.'
+        ]
+        , indent=4
+    )
+    Paragraph(
+        'However, starting out with a simple and naive implementation is not a bad idea at all. '
+        'Once it is proven correct, it can serve as reference implementation to validate later '
+        'improvements.'
+        , indent=4
+    )
+
+    Heading('Testing the code', level=3,crosslink='testing-code')
+
+    Paragraph(
+        "In order to prove that our implementation of the dot product is correct, we write "
+        "some tests. Open the file :file:`tests/test_et_dot.py`, remove the original "
+        "tests put in by micc2_, and add a new one like below:"
+    )
+    CodeBlock(
+        [ 'import et_dot'
+        , ''
+        , 'def test_dot_aa():'
+        , '    a = [1,2,3]'
+        , '    expected = 14'
+        , '    result = et_dot.dot(a,a)'
+        , '    assert result==expected'
+        ]
+        , language='python', copyto=project_path/'tests/test_et_dot.py'
+    )
+    Paragraph(
+        'The test :py:meth:`test_dot_aa` defines an array with 3 ``int`` '
+        'numbers, and computes the dot product with itself. The expected '
+        'result is easily calculated by hand. '
+        'Save the file, and run the test, usi           ng Pytest_ as explained in '
+        ':ref:`testing-your-code`. Pytest_ will show a line for every test '
+        'source file an on each such line a ``.`` will appear for every '
+        'successfull test, and a ``F`` for a failing test. Here is the '
+        'result:'
+    )
+    CodeBlock(
+        "pytest tests"
+        , language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        'Great, our test succeeds. If you want some more detail you can add the '
+        '``-v`` flag. Pytest_ always captures the output without showing it. '
+        'If you need to see it to help you understand errors, add the ``-s`` flag.'
+    )
+    Paragraph(
+        "We thus have added a single test and verified that it works by running "
+        "''pytest''. It is good practise to commit this to our local git repository:"
+    )
+    CodeBlock(
+        "git commit -a -m 'added test_dot_aa()'"
+        , language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "Obviously, our test tests only one particular case, and, perhaps, other "
+        "cases might fail. A clever way of testing is to focus on properties. "
+        "From mathematics we now that the dot product is commutative. Let's add a "
+        "test for that. Open :file:`test_et_dot.py` again and add this code:"
+    )
+    CodeBlock(
+        [ 'import random'
+        , ''
+        , 'def test_dot_commutative():'
+        , '    # create two arrays of length 10 with random float numbers:'
+        , '    a = []'
+        , '    b = []'
+        , '    for _ in range(10):'
+        , '        a.append(random.random())'
+        , '        b.append(random.random())'
+        , '    # test commutativity:'
+        , '    ab = et_dot.dot(a,b)'
+        , '    ba = et_dot.dot(b,a)'
+        , '    assert ab==ba'
+        ]
+        , language='python', copyto=project_path/'tests/test_et_dot.py', append=True
+    )
+    Note(
+        "Focussing on mathematical properties sometimes requires a bit more thought. "
+        "Our mathematical intuition is based on the properties of real numbers - which, "
+        "as a matter of fact, have infinite precision. Programming languages, however, "
+        "use floating point numbers, which have a finite precision. The mathematical "
+        "properties for floating point numbers are not the same as for real numbers. "
+        "we'll come to that later."
+    )
+    CodeBlock(
+        "pytest tests -v"
+        , language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "The new test passes as well."
+    )
+    Paragraph(
+        "Above we used the :py:meth:`random` module from Python's standard library "
+        "for generating the random numbers that populate the array. Every time we "
+        "run the test, different random numbers will be generated. That makes the "
+        "test more powerful and weaker at the same time. By running the test over "
+        "and over againg new random arrays will be tested, growing our cofidence in"
+        "our dot product implementations. Suppose, however, that all of a sudden the"
+        "test fails. What are we going to do? We know that something is wrong, but "
+        "we have no means of investigating the source of the error, because the next "
+        "time we run the test the arrays will be different again and the test may "
+        "succeed again. The test is irreproducible. Fortunateely, that can be fixed "
+        "by setting the seed of the random number generator:"
+    )
+    CodeBlock(
+        [ 'def test_dot_commutative():'
+        , '    # Fix the seed for the random number generator of module random.'
+        , '    random.seed(0)'
+        , '    # choose array size'
+        , '    n = 10'
+        , '    # create two arrays of length 10 with zeroes:'
+        , '    a = n*[0]'
+        , '    b = n*[0]'
+        , '    # repeat the test 1000 times:'
+        , '    for _ in range(1000):'
+        , '        for i in range(10):'
+        , '             a[i] = random.random()'
+        , '             b[i] = random.random()'
+        , '    # test commutativity:'
+        , '    ab = et_dot.dot(a,b)'
+        , '    ba = et_dot.dot(b,a)'
+        , '    assert ab==ba'
+        ]
+        , language='python', copyto=project_path/'tests/test_et_dot.py', append=True
+    )
+    CodeBlock(
+        "pytest tests -v"
+        , language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "The 1000 tests all pass. If, say test 315 would fail, it would fail every time "
+        "we run it and the source of error could be investigated."
+    )
+    Paragraph(
+        "Another property is that the dot product of an array of ones with another array "
+        "is the sum of the elements of the other array. Let us add another test for that:"
+    )
+    CodeBlock(
+        [ 'def test_dot_one():'
+        , '    # Fix the seed for the random number generator of module random.'
+        , '    random.seed(0)'
+        , '    # choose array size'
+        , '    n = 10'
+        , '    # create two arrays of length 10 with zeroes, resp. ones:'
+        , '    a = n*[0]'
+        , '    one = n*[1]'
+        , '    # repeat the test 1000 times:'
+        , '    for _ in range(1000):'
+        , '        for i in range(10):'
+        , '             a[i] = random.random()'
+        , '    # test:'
+        , '    aone = et_dot.dot(a,one)'
+        , '    expected = sum(a)'
+        , '    assert aone==expected'
+        ]
+        , language='python', copyto=project_path / 'tests/test_et_dot.py', append=True
+    )
+    CodeBlock(
+        "pytest tests -v"
+        , language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "Success again. We are getting quite confident in the correctness of our implementation. "
+        "Here is yet another test:"
+    )
+    CodeBlock(
+        [ 'def test_dot_one_2():'
+        , '    a1 = 1.0e16'
+        , '    a   = [a1 , 1.0, -a1]'
+        , '    one = [1.0, 1.0, 1.0]'
+        , '    # test:'
+        , '    aone = et_dot.dot(a,one)'
+        , '    expected = 1.0'
+        , '    assert aone == expected'
+        ]
+        , language='python', copyto=project_path / 'tests/test_et_dot.py', append=True
+    )
+    Paragraph(
+        "Clearly, it is a special case of the test above. The expected result is the sum "
+        "of the elements in ``a``, that is ``1.0``. Yet it - unexpectedly - fails. "
+        "Fortunately pytest_ produces a readable report about the failure:"
+    )
+    CodeBlock(
+        "pytest tests -v"
+        , language='bash', execute=True, cwd=project_path, error_ok=True
+    )
+    Paragraph(
+        "Mathematically, our expectations about the outcome of the test are certainly correct. "
+        "Yet, pytest_ tells us it found that the result is ``0.0`` rather than ``1.0``. What "
+        "could possibly be wrong? Well our mathematical expectations are based on our assumption "
+        "that the elements of ``a`` are real numbers. They aren't. The elements of ``a`` are "
+        "floating point numbers, which can only represent a finite number of decimal digits. "
+        "*Double precision* numbers, which are the default floating point type in Python, are "
+        "typically truncated after 16 decimal digits, *single precision* numbers after 8. "
+        "Observe the consequences of this in the Python statements below:"
+    )
+    CodeBlock(
+        [ "print( 1.0 + 1e16 )"
+        , "print( 1e16 + 1.0 )"
+        ]
+        , language='python-interpreter', execute=True
+    )
+    Paragraph(
+        "Because ``1e16`` is a 1 followed by 16 zeroes, adding ``1`` would alter the 17th digit,"
+        "which is, because of the finite precision, not represented. An approximate result is "
+        "returned, namely ``1e16``, which is of by a relative error of only 1e-16."
+    )
+    CodeBlock(
+        [ "print( 1e16 + 1.0 - 1e16 )"
+        , "print( 1e16 - 1e16 + 1.0 )"
+        , "print( 1.0 + 1e16 - 1e16 )"
+        ]
+        , language='python-interpreter', execute=True
+    )
+    Paragraph(
+        "Although each of these expressions should yield ``0.0``, if they were real numbers, "
+        "the result differs because of the finite precision. Python executes the expressions "
+        "from left to right, so they are equivalent to: "
+    )
+    CodeBlock(
+        [ "1e16 + 1.0 - 1e16 = ( 1e16 + 1.0 ) - 1e16 = 1e16 - 1e16 = 0.0"
+        , "1e16 - 1e16 + 1.0 = ( 1e16 - 1e16 ) + 1.0 = 0.0  + 1.0  = 1.0"
+        , "1.0 + 1e16 - 1e16 = ( 1.0 + 1e16 ) - 1e16 = 1e16 - 1e16 = 0.0"
+        ]
+        , language='python-interpreter'
+    )
+    Paragraph(
+        "There are several lessons to be learned from this:"
+    )
+    List(
+        [ "The test does not fail because our code is wrong, but because our mind is used to "
+          "reasoning about real number arithmetic, rather than *floating point arithmetic* "
+          "rules. As the latter is subject to round-off errors, tests sometimes fail "
+          "unexpectedly. Note that for comparing floating point numbers the the standard "
+          "library provides a :py:meth:`math.isclose` method."
+        , "Another silent assumption by which we can be mislead is in the random numbers. "
+          "In fact, :py:meth:`random.random` generates pseudo-random numbers **in the interval "
+          "``[0,1[``**, which is quite a bit smaller than ``]-inf,+inf[``. No matter how often "
+          "we run the test the special case above that fails will never be encountered, which "
+          "may lead to unwarranted confidence in the code."
+        ]
+    )
+    Paragraph(
+        "So let us fix the failing test using :py:meth:`math.isclose` to account for round-off "
+        "errors by specifying an relative tolerance and negating the condition for the "
+        "original test:"
+    )
+    CodeBlock(
+        [ 'def test_dot_one_2():'
+        , '    a1 = 1.0e16'
+        , '    a   = [a1 , 1.0, -a1]'
+        , '    one = [1.0, 1.0, 1.0]'
+        , '    # test:'
+        , '    aone = et_dot.dot(a,one)'
+        , '    expected = 1.0'
+        , '    assert aone != expected'
+        , '    assert math.isclose(result, expected, rel_tol=1e-15)'
+        ]
+        , language='python', copyto=project_path / 'tests/test_et_dot.py', append=True
+    )
+    Paragraph(
+        "Another aspect that deserves testing the behavior of the code in exceptional "
+        "circumstances. Does it indeed raise :py:exc:`ArithmeticError` if the arguments "
+        "are not of the same length?"
+    )
+    CodeBlock(
+        [ "import pytest"
+        , ""
+        , "def test_dot_unequal_length():"
+        , "    a = [1,2]"
+        , "    b = [1,2,3]"
+        , "    with pytest.raises(ArithmeticError):"
+        , "        et_dot.dot(a,b)"
+        ]
+        , language='python', copyto=project_path / 'tests/test_et_dot.py', append=True
+    )
+    Paragraph(
+        "Here, :py:meth:`pytest.raises` is a *context manager* that will verify that "
+        ":py:exc:`ArithmeticError` is raise when its body is executed. The test will "
+        "succeed if indeed the code raises :py:exc:`ArithmeticError` and raise "
+        ":py:exc:`AssertionErrorError` if not, causing the test to fail. For an "
+        "explanation fo context managers see "
+        "`The Curious Case of Python's Context Manager <https://rednafi.github.io/digressions/python/2020/03/26/python-contextmanager.html>`_."
+        "Note that you can easily make :meth:`et_dot.dot` raise other exceptions, e.g. "
+        ":exc:`TypeError` by passing in arrays of non-numeric types:"
+    )
+    CodeBlock(
+        [ "import et_dot"
+        , "et_dot.dot([1,2],[1,'two'])"
+        ]
+        , language='python-interpreter', execute=True, cwd=project_path, error_ok=True
+    )
+    Paragraph(
+        "Note that it is not the product ``a[i]*b[i]`` for ``i=1`` that is wreaking havoc, "
+        "but the addition of its result to ``d``. Furthermore, Don't bother the link to "
+        "where the error occured in the traceback. It is due to the fact that this course "
+        "is completely generated with Python rather than written by hand)."
+    )
+    Paragraph(
+        "More tests could be devised, but the current tests give us sufficient confidence. "
+        "The point where you stop testing and move on with the next issue, feature, or "
+        "project is subject to various considerations, such as confidence, experience, "
+        "problem understanding, and time pressure. In any case this is a good point to "
+        "commit changes and additions, increase the version number string, and commit the "
+        "version bumb as well:"
+    )
+    CodeBlock(
+        [ "git commit -a -m 'dot() tests added'"
+        , "micc2 version -p"
+        , "git commit -a -m 'v0.0.1'"
+        ]
+        , language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "The the ``micc2 version`` flag ``-p`` is shorthand for ``--patch``, and requests "
+        "incrementing the patch (=last) component of the version string, as seen in the "
+        "output. The minor component can be incremented with ``-m`` or ``--minor``, the "
+        "major component with ``-M`` or ``--major``. "
+    )
+    Paragraph(
+        "At this point you might notice that even for a very simple and well defined "
+        "function, as the dot product, the amount of test code easily exceeds the amount "
+        "of tested code by a factor of 5 or more. This is not at all uncommon. As the "
+        "tested code here is an isolated piece of code, you will probably leave it alone "
+        "as soon as it passes the tests and you are confident in the solution. If at some "
+        "point, the :py:meth:`dot` would failyou should add a test that reproduces the error "
+        "and improve the solution so that it passes the test."
+    )
+    Paragraph(
+        "When constructing software for more complex problems, there will be several "
+        "interacting components and running the tests after modifying one of the components "
+        "will help you assure that all components still play well together, and spot problems "
+        "as soon as possible."
+    )
+
+    Heading('Improving efficiency', level=3, crosslink='improving-efficiency')
+
+    Paragraph(
+        "There are times when a just a correct solution to the problem at hand is"
+        "sufficient. If ``ET-dot`` is meant to compute a few dot products of small "
+        "arrays, the naive implementation above will probably be sufficient. "
+        "However, if it is to be used many times and for large arrays and the user "
+        "is impatiently waiting for the answer, or if your computing resources are "
+        "scarse, a more efficient implementation is needed. Especially in scientific "
+        "computing and high performance computing, where compute tasks may run for days "
+        "using hundreds or even thousands of of compute nodes and resources are to be "
+        "shared with many researchers, using the resources efficiently is of utmost "
+        "importance and efficient implementations are therefore indispensable."
+    )
+    Paragraph(
+        "However important efficiency may be, it is nevertheless a good strategy for "
+        "developing a new piece of code, to start out with a simple, even naive "
+        "implementation, neglecting efficiency considerations totally, instead "
+        "focussing on correctness. Python has a reputation of being an extremely "
+        "productive programming language. Once you have proven the correctness of "
+        "this first version it can serve as a reference solution to verify the "
+        "correctness of later more efficient implementations. In addition, the "
+        "analysis of this version can highlight the sources of inefficiency and "
+        "help you focus your attention to the parts that really need it."
+    )
+
+    Heading('Timing your code', level=4, crosslink='timing-code')
+
+    Paragraph(
+        "The simplest way to probe the efficiency of your code is to time it: write "
+        "a simple script and record how long it takes to execute. Here's a script "
+        "that computes the dot product of two long arrays of random numbers."
+    )
+    CodeBlock(
+        [ '"""File prof/run1.py"""'
+        , 'import sys              #hide#'
+        , 'sys.path.insert(0,".")  #hide#'
+        , 'import random'
+        , 'from et_dot import dot # the dot method is all we need from et_dot'
+        , ''
+        , 'def random_array(n=1000):'
+        , '    """Create an array with n random numbers in [0,1[."""'
+        , '    # Below we use a list comprehension (a Python idiom for '
+        , '    # creating a list from an iterable object).'
+        , '    a = [random.random() for i in range(n)]'
+        , '    return a'
+        , ''
+        , 'if __name__==\'__main__\':'
+        , '    a = random_array()'
+        , '    b = random_array()'
+        , '    print(dot(a, b))'
+        , '    print("-*# done #*-")'
+        ]
+        , language='python', copyto=project_path / 'prof/run1.py'
+    )
+    Paragraph(
+        "Executing this script yields:"
+    )
+    CodeBlock(
+        "python ./prof/run1.py"
+        ,language='bash', execute=True, cwd=project_path
+    )
+    Note(
+        "Every run of this script yields a slightly different outcome because "
+        "we did not fix ``random.seed()``. It will, however, typically be around "
+        "250. Since the average outcome of ``random.random()`` is 0.5, so every "
+        "entry contributes on average ``0.5*0.5 = 0.25`` and as there are 1000 "
+        "contributions, that makes on average 250.0."
+    )
+    Paragraph(
+        "We are now ready to time our script. There are many ways to achieve this. "
+        "Here is a `particularly good introduction <https://realpython.com/python-timer/>`_. "
+        "The `et-stopwatch project <https://et-stopwatch.readthedocs.io/en/latest/readme.html>`_ "
+        "takes this a little further. It can be installed in your current Python environment "
+        "with ``pip``:"
+    )
+    CodeBlock(
+        'python -m pip install et-stopwatch'
+        , language='bash', execute=True
+    )
+    Paragraph(
+        "Although ``pip`` is complaining a bit about not being up to date, the "
+        "installation is successful."
+    )
+    Paragraph(
+        "To time the script above, modify it as below, using the :py:class:`Stopwatch` "
+        "class as a context manager:"
+    )
+    CodeBlock(
+        [ '"""File prof/run1.py"""'
+        , 'import sys              #hide#'
+        , 'sys.path.insert(0,".")  #hide#'
+        , 'import random'
+        , 'from et_dot import dot # the dot method is all we need from et_dot'
+        , ''
+        , 'from et_stopwatch import Stopwatch'
+        , ''
+        , 'def random_array(n=1000):'
+        , '    """Create an array with n random numbers in [0,1[."""'
+        , '    # Below we use a list comprehension (a Python idiom for '
+        , '    # creating a list from an iterable object).'
+        , '    a = [random.random() for i in range(n)]'
+        , '    return a'
+        , ''
+        , 'if __name__==\'__main__\':'
+        , '    with Stopwatch(message="init"):'
+        , '        a = random_array()'
+        , '        b = random_array()'
+        , '    with Stopwatch(message="dot "):'
+        , '        a_dot_b = dot(a, b)'
+        , '    print(a_dot_b)'
+        , '    print("-*# done #*-")'
+        ]
+        , language='python', copyto=project_path / 'prof/run1.py'
+    )
+    Paragraph(
+        "and execute it again:"
+    )
+    CodeBlock(
+        "python ./prof/run1.py"
+        ,language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "When the script is executed each :py:class:`with` block will print "
+        "the time it takes to execute its body. The first :py:class:`with` "
+        "block times the initialisation of the arrays, and the second times "
+        "the computation of the dot product. Note that the initialization of "
+        "the arrays takes a bit longer than the dot product computation. "
+        "Computing random numbers is expensive."
+    )
+
+    Heading("Comparison to Numpy", level=4, crosslink='comparison-numpy')
+
+    Paragraph(
+        "As said earlier, our implementation of the dot product is rather naive. "
+        "If you want to become a good programmer, you should understand that you "
+        "are probably not the first researcher in need of a dot product implementation. "
+        "For most linear algebra problems, `Numpy <https://numpy.org>`_ provides very "
+        "efficient implementations.Below the modified :file:`run1.py` script adds "
+        "timing results for the Numpy_ equivalent of our code."
+    )
+    CodeBlock(
+        [ '"""File prof/run1.py"""'
+        , 'import sys                                                           #hide#'
+        , 'sys.path.insert(0,".")                                               #hide#'
+        , 'import random                                                        #hide#'
+        , 'from et_dot import dot # the dot method is all we need from et_dot   #hide#'
+        , 'from et_stopwatch import Stopwatch                                   #hide#'
+        , 'def random_array(n=1000):                                            #hide#'
+        , '    """Create an array with n random numbers in [0,1[."""            #hide#'
+        , '    # Below we use a list comprehension (a Python idiom for          #hide#'
+        , '    # creating a list from an iterable object).                      #hide#'
+        , '    a = [random.random() for i in range(n)]                          #hide#'
+        , '    return a                                                         #hide#'
+        , '# ...'
+        , 'import numpy as np'
+        , ''
+        , 'if __name__==\'__main__\':'
+        , '    with Stopwatch(message="et init"):'
+        , '        a = random_array()'
+        , '        b = random_array()'
+        , '    with Stopwatch(message="et dot "):'
+        , '        dot(a,b)'
+        , '    with Stopwatch(message="np init"):'
+        , '        a = np.random.rand(1000)'
+        , '        b = np.random.rand(1000)'
+        , '    with Stopwatch(message="np dot "):'
+        , '        np.dot(a,b)'
+        , '    print("-*# done #*-")'
+        ]
+        , language='python', copyto=project_path / 'prof/run1.py'
+    )
+    Paragraph(
+        "Its execution yields:"
+    )
+    CodeBlock(
+        "python ./prof/run1.py"
+        ,language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "Obviously, Numpy_ does about an order of magnitude better than our "
+        "naive dot product implementation. It is important to understand the "
+        "reasons for this improvement:"
+    )
+    List(
+        [ "Numpy_ arrays are contiguous data structures of floating point numbers, "
+          "unlike Python's :py:class:`list` which we have been using for our arrays, "
+          "so far. In a Python :py:class:`list` object is in fact a pointer that can "
+          "point to an arbitrary Python object. The items in a Python :py:class:`list` "
+          "object may even belong to different types. Contiguous memory access is far "
+          "more efficient. In addition, the memory footprint of a numpy array is "
+          "significantly lower that that of a plain Python list."
+        , "The loop over Numpy_ arrays is implemented in a low-level programming "
+          "languange, like C, C++ or Fortran. This allows to make full use of the "
+          "processors hardware features, such as *vectorization* and "
+          "*fused multiply-add* (FMA)."
+        ]
+    )
+
+    Heading('Conclusion', level=4, crosslink='conclusion')
+
+    Paragraph(
+        "There are three important generic lessons to be learned from this tutorial:"
+    )
+    List(
+        [ "Always start your projects with a simple and straightforward implementation which "
+          "can be easily be proven to be correct, even if you know that it will not satisfy "
+          "your efficiency constraints. You should use it as a reference solution to prove the "
+          "correctness of later more efficient implementations."
+        , "Write test code for proving correctness. Tests must be reproducible, and be run "
+          "after every code extension or modification to ensure that the changes did not "
+          "break the existing code."
+        , "Time your code to understand which parts are time consuming and which not. "
+          "Optimize bottlenecks first and do not waste time optimizing code that does "
+          "not contribute significantly to the total runtime. Optimized code is typically "
+          "harder to read and may become a maintenance issue."
+        , 'Before you write any code, in this case our dot product implementation, spend '
+          'some time searching the internet to see what is already available. Especially '
+          'in the field of scientific and high performance computing there are many excellent '
+          'libraries available which are hard to beat. Use your precious time for new stuff. '
+          'Consider adding new features to an existing codebase, rather than starting from '
+          'scratch. It will improve your programming skills and gain you time, even though '
+          'initially your progress may seem slower. It might also give your code more '
+          'visibility, and more users, because you provide them with and extra feature on '
+          'top of something they are already used to.'
+        ]
+        , numbered=True
+    )
+
     """
-   
-   
-   a_dot_b = dot(a,b)
     """
     doc.verbose = True
-    print('>>>>>>')
-    # print(doc.items[-1])
-    print(doc, end='')
-    print('<<<<<<')
+    if write:
+        doc.write(Path.home()/'workspace/et-micc2/tutorials/TUTORIAL-2.rst')
+    else:
+        print('>>>>>>')
+        # print(doc.items[-1])
+        print(doc, end='')
+        print('<<<<<<')
+
 
 import re
 def test_re():
@@ -1047,7 +1651,7 @@ def test_TextWrapper():
 # that the source directory is on the path
 # ==============================================================================
 if __name__ == "__main__":
-    the_test_you_want_to_debug = test_Tutorial1_4
+    the_test_you_want_to_debug = test_Tutorial2
 
     print("__main__ running", the_test_you_want_to_debug)
     the_test_you_want_to_debug()
