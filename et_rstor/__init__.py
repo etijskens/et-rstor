@@ -19,13 +19,17 @@ import traceback
 
 __version__ = "1.1.2"
 
-
 ####################################################################################################
 # RstDocument
 ####################################################################################################
 class RstDocument:
 
-    def __init__(self, name, width=72, headings_numbered_from_level=None, is_default_document=False):
+    def __init__( self, name
+                , headings_numbered_from_level=None
+                , is_default_document=False
+                , verbose=True
+                , width=72
+                ):
         """Create a RstDocument.
 
         :param str name: name of the document, used as a filename for writing the document.
@@ -47,9 +51,12 @@ class RstDocument:
             self.headings_numbered_from_level = headings_numbered_from_level
             for l in range(headings_numbered_from_level,6):
                 self.heading_numbers[l] = 0
-        self.verbose = False
+
         if is_default_document:
             RstItem.default_document = self
+
+        self.verbose = verbose
+
         self.rst = ''
 
 
@@ -68,10 +75,16 @@ class RstDocument:
 
 
     def rstor(self):
+        """Concatenate all RstItems"""
         self.rst = ''
         for item in self.items:
             self.rst += item.rst
-        return self.rst
+
+
+    # def __str__(self):
+    #     if not self.rst:
+    #         self.rstor()
+    #     return self.rst
 
 
     def write(self, path='.'):
@@ -79,23 +92,30 @@ class RstDocument:
 
         :param (Path,str) path: directory to create the file in.
         """
-
-        with path.open(mode='w') as f:
-            f.write(str(self))
+        if not self.rst:
+            self.rstor()
+        p = path / f'{self.name}.rst'
+        with p.open(mode='w') as f:
+            f.write(self.rst)
 
 
 ####################################################################################################
 # Base classes
 ####################################################################################################
 class RstItem():
-    """Base class for items to be added to an RstDocument."""
-    default_document = None
-    
-    def __init__(self, document):
-        """Create RstItem.
+    """Base class for items to be added to an RstDocument.
 
-        :param RstDocument document: document to append this RstItem to.
-        """
+    Derived classes must:
+
+    * call ``self.rstor()`` at the end of the ctor.
+    * reimplement :py:meth:`rstor()`
+
+    :param RstDocument document: document to append this RstItem to.
+    """
+    default_document = None
+
+    def __init__(self, document):
+        """Create an RstItem and add it to document (if not None)."""
         if document:
             self.document = document
         elif RstItem.default_document:
@@ -107,21 +127,37 @@ class RstItem():
             self.document.append(self)
 
 
-    def process(self):
-        print(f"\nrstor> {self.__class__.__name__}")
-        rst = self.rstor()
-        print(f">>>>>>\n{rst}<<<<<<\n")
+    def show_progress(self):
+        if self.document.verbose:
+            print(f"\nrstor> {self.__class__.__name__}")
+            print(f">>>>>>\n{self.rst}<<<<<<\n")
 
 
     def rstor(self):
-        """convert content to rst format."""
+        """Convert RstItem content to ``.rst`` format.
+
+        This method must be implemented by every derived class.
+        """
         raise NotImplementedError()
 
+
+    # def __str__(self):
+    #     if not self.rst:
+    #         self.rstor()
+    #     return self.rst
 
 ####################################################################################################
 # Heading
 ####################################################################################################
 class Heading(RstItem):
+    """Heading item.
+
+    See https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html#sections
+    for standard.
+
+    :param int level: 0-5.
+    :param str text: heading text.
+    """
     parameters = [('#',True)
                  ,('*',True)
                  ,('=',False)
@@ -129,50 +165,44 @@ class Heading(RstItem):
                  ,('^',False)
                  ,('"',False)
                  ]
-    def __init__(self, text, level=0, val=None, crosslink='', document=None):
-        """Heading item.
 
-        See https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html#sections
-        for standard.
-
-        :param int level: 0-5.
-        :param str text: heading text.
-        """
+    def __init__(self, heading, level=0, val=None, crosslink='', document=None):
         super().__init__(document=document)
-
-        text = text.replace('\n', ' ')
         self.parms = Heading.parameters[level]
+
+        self.heading = heading.replace('\n', ' ')
         if level >= self.document.headings_numbered_from_level:
             if val is None:
                 self.document.heading_numbers[level] += 1
             else:
-                self.document.heading_numbers[level] += val
+                self.document.heading_numbers[level] = val
             for l in range(level+1,6):
                 self.document.heading_numbers[l] = 0
-            self.text = ''
+            numbering = ''
             for l in range(self.document.headings_numbered_from_level,level+1):
-                self.text += f'{self.document.heading_numbers[l]}.'
-            self.text += f" {text}"
-        else:
-            self.text = text
+                numbering += f'{self.document.heading_numbers[l]}.'
+            self.heading = f"{numbering} {self.heading}"
+
         self.crosslink = crosslink
-        self.process()
+
+        self.rstor()
+        self.show_progress()
 
 
     def rstor(self):
-        text = ''
+        self.rst = ''
         if self.crosslink:
-            text += f'.. _{self.crosslink}:\n\n'
+            self.rst += f'.. _{self.crosslink}:\n\n'
 
-        n = len(self.text)
-        line = n * self.parms[0]
+        n = len(self.heading)
+        underline = n * self.parms[0]
         if self.parms[1]:
-            text += f'{line}\n{self.text}\n{line}\n\n'
+            self.rst += f'{underline}\n' \
+                        f'{self.heading}\n' \
+                        f'{underline}\n\n'
         else:
-            text += f'{self.text}\n{line}\n\n'
-        self.rst = text
-        return self.rst
-
+            self.rst += f'{self.heading}\n' \
+                        f'{underline}\n\n'
 
 
 ####################################################################################################
@@ -181,21 +211,19 @@ class Heading(RstItem):
 class Paragraph(RstItem):
     def __init__(self, text, width=72, indent=0, document=None):
         super().__init__(document=document)
-
         self.text = text
         self.width = width
         self.indent = indent*' '
-        self.process()
+        self.rstor()
+        self.show_progress()
 
 
     def rstor(self):
         lines = self.document.textwrapper.wrap(self.text)
-        text = ''
+        self.rst = ''
         for line in lines:
-            text += f'{self.indent}{line}\n'
-        text += '\n'
-        self.rst = text
-        return self.rst
+            self.rst += f'{self.indent}{line}\n'
+        self.rst += '\n'
 
 
 ####################################################################################################
@@ -205,17 +233,17 @@ class Note(RstItem):
     def __init__(self, text, document=None):
         super().__init__(document=document)
         self.paragraphs = listify(text)
-        self.process()
+        self.rstor()
+        self.show_progress()
+
 
     def rstor(self):
-        text = '.. note::\n\n'
+        self.rst = '.. note::\n\n'
         for paragraph in self.paragraphs:
             lines = self.document.textwrapper.wrap(paragraph)
             for line in lines:
-                text += f'   {line}\n'
-            text += '\n'
-        self.rst = text
-        return self.rst
+                self.rst += f'   {line}\n'
+            self.rst += '\n'
 
 
 ####################################################################################################
@@ -224,12 +252,14 @@ class Note(RstItem):
 class Include(RstItem):
     def __init__(self, filename, document=None):
         super().__init__(document=document)
-        self.filename = filename
-        self.process()
+        self.include_file = filename
+        self.rstor()
+        self.show_progress()
+
 
     def rstor(self):
-        self.rst = f'.. include:: {self.filename}\n\n'
-        return self.rst
+        self.rst = f'.. include:: {self.include_file}\n\n'
+
 
 ####################################################################################################
 # Image
@@ -238,11 +268,12 @@ class Image(RstItem):
     def __init__(self, filepath, document=None):
         super().__init__(document=document)
         self.filepath = filepath
-        self.process()
+        self.rstor()
+        self.show_progress()
+
 
     def rstor(self):
         self.rst = f'.. include:: {self.filepath}\n\n'
-        return self.rst
 
 
 ####################################################################################################
@@ -250,57 +281,62 @@ class Image(RstItem):
 ####################################################################################################
 class List(RstItem):
     def __init__(self, items, numbered=False, indent=0, document=None):
-        """List item, bulleted or numbered"""
+        """List item, bullets or numbered"""
         super().__init__(document=document)
         self.items = listify(items)
         self.numbered = numbered
         self.indent = indent*' '
-        self.process()
+        self.rstor()
+        self.show_progress()
 
 
     def rstor(self):
         bullet, indent2 = ('#.','  ') if self.numbered else ('*',' ')
-        text = ''
+        self.rst = ''
         for item in self.items:
             lines = self.document.textwrapper.wrap(item)
-            text += f'{self.indent}{bullet} {lines[0]}\n'
+            self.rst += f'{self.indent}{bullet} {lines[0]}\n'
             for line in lines[1:]:
-                text += f'{self.indent}{indent2} {line}\n'
-            text += '\n'
-        self.rst = text
-        return self.rst
+                self.rst += f'{self.indent}{indent2} {line}\n'
+            self.rst += '\n'
 
 
 ####################################################################################################
 # CodeBlock
 ####################################################################################################
 class CodeBlock(RstItem):
+    """Rst code-block directive.
+
+    :param lines: command or list of commands
+    :param str language: language of the commands
+    :param bool execute: if True, execute the commands and add the output to the text. If False
+        the lines are printed literally, no prompt is added.
+    :param bool error_ok: if True, exceptions raised will be absorbed by the .rst text instead
+        of propagated to Python (which will abort the script)
+    :param str prompt: prompt to appear in front of the commands or statements, ignored if execute==False.
+    :param indent: indentation of the code-block. default=4
+    :param Path copyto: copy the code to this file.
+    :param bool append: append the code to the copyto destination instead of overwriting.
+    :param callable() setup: function that has to be executed before the command lines.
+    :param callable() cleanup: function that has to be executed before the command lines.
+    """
+
     default_prompts = { 'bash': '> '
                       , 'python': ''
                       , 'pycon': '>>> '
                       }
 
     def __init__( self, lines
-                , language='', execute=False
+                , language=''
+                , execute=False
+                , cwd='.'
+                , error_ok=False
                 , indent=4
                 , prompt=None
-                , cwd='.', setup=None, cleanup=None, copyto=None, append=False
-                , error_ok=False
+                , copyto=None, append=False
+                , setup=None, cleanup=None
                 , document = None
                 ):
-        """
-
-        :param lines: command or list of commands
-        :param str language: language of the command
-        :param bool execute: if True, execute the commands and add the output to the text. If False
-            the lines are printed literally, no prompt is added.
-        :param str prompt: prompt to appear in front of executed commands, ignored if execute==False.
-        :param indent: indentation of the code-block
-        :param callable() setup: function that has to be executed before the command lines.
-        :param callable() cleanup: function that has to be executed before the command lines.
-        :param Path copyto: copy the code to this file.
-        :param bool append: append the code to copyto instead of copy.
-        """
         super().__init__(document=document)
         self.lines = listify(lines)
         self.language = language
@@ -313,16 +349,18 @@ class CodeBlock(RstItem):
         self.indent = indent*' '
         self.execute = execute
         self.cwd = cwd
-        self.setup = setup
-        self.cleanup = cleanup
+        self.error_ok = error_ok
         self.copyto = copyto
         self.append = append
-        self.error_ok = error_ok
-        self.process()
+        self.setup = setup
+        self.cleanup = cleanup
+
+        self.rstor()
+        self.show_progress()
 
 
     def rstor(self):
-        text = f'.. code-block:: {self.language}\n\n'
+        self.rst = f'.. code-block:: {self.language}\n\n'
 
         if self.execute:
             if self.setup:
@@ -330,7 +368,7 @@ class CodeBlock(RstItem):
             if self.language == 'bash':
                 for line in self.lines:
                     print(f"{self.language}@ {line}")
-                    text += f'{self.indent}{self.prompt}{line}\n'
+                    self.rst += f'{self.indent}{self.prompt}{line}\n'
                     # execute the command and add its output
                     completed_process = subprocess.run( line
                                                       , cwd=self.cwd
@@ -342,7 +380,7 @@ class CodeBlock(RstItem):
                     if completed_process.returncode and not self.error_ok:
                         print(output)
                         raise RuntimeError()
-                    text += output+'\n'
+                    self.rst += output+'\n'
 
             elif self.language == 'pycon':
                 sys.path.insert(0,'.')
@@ -351,25 +389,35 @@ class CodeBlock(RstItem):
                     output = ''
                     for line in self.lines:
                         print(f"{self.language}@ {line}")
-                        hide = line.endswith('#hide#')
-                        stdout = io.StringIO()
-                        with redirect_stdout(stdout):
-                            if not hide:
-                                output += f"{self.prompt}{line}\n"
-                            try:
-                                exec(line)
-                            except:
-                                if self.error_ok:
-                                    print(traceback.format_exc())
-                                else:
-                                    raise
-                            if not hide:
-                                output += stdout.getvalue()
+                        hide = '#hide#' in line
+                        hide_stdout = '#hide_stdout#' in line
+                        hide_stderr = '#hide_stderr#' in line
+                        str_stdout = io.StringIO()
+                        str_stderr = io.StringIO()
+                        with redirect_stderr(str_stderr):
+                            with redirect_stdout(str_stdout):
+                                if not hide:
+                                    output += f"{self.prompt}{line}\n"
+                                try:
+                                    exec(line)
+                                except:
+                                    if self.error_ok:
+                                        print(traceback.format_exc())
+                                    else:
+                                        raise
+                                o = str_stdout.getvalue()
+                                if o and not hide_stdout:
+                                    output += o
+                                e = str_stderr.getvalue()
+                                if e and not hide_stderr:
+                                    output += e
+
+
 
                     # indent the output if necessary
                     if self.indent:
                         output = self.indent + output.replace('\n', '\n' + self.indent)
-                    text += '\n>>>\n' + output + '\n'
+                    self.rst += '\n>>>\n' + output + '\n'
 
             else:
                 raise NotImplementedError()
@@ -377,12 +425,12 @@ class CodeBlock(RstItem):
             if self.cleanup:
                 self.cleanup()
         else:
-            text = f'.. code-block:: {self.language}\n\n'
+            self.rst = f'.. code-block:: {self.language}\n\n'
             for line in self.lines:
                 if not line.endswith('#hide#'):
-                    text += f'{self.indent}{self.prompt}{line}\n'
+                    self.rst += f'{self.indent}{self.prompt}{line}\n'
 
-        text += '\n'
+        self.rst += '\n'
 
         if self.copyto :
             self.copyto.parent.mkdir(parents=True,exist_ok=True)
@@ -390,9 +438,6 @@ class CodeBlock(RstItem):
             with self.copyto.open(mode=mode) as f:
                 for line in self.lines:
                     f.write(line + '\n')
-
-        self.rst = text
-        return self.rst
 
 
 ####################################################################################################

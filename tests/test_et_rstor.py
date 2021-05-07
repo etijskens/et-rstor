@@ -2,10 +2,14 @@
 
 """Tests for et_rstor package."""
 
-from et_rstor import *
 from pathlib import Path
 import re
 import sysconfig
+import sys
+if not '.' in sys.path:
+    sys.path.insert(0, '.')
+
+from et_rstor import *
 
 def test_re():
     r = re.compile(r"<(((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z]){2,6}([a-zA-Z0-9\.\&\/\?\:@\-_=#])*)>`_([,.:;!?\"\')}]?|(\.\.\.))\Z")
@@ -276,7 +280,7 @@ def test_Tutorial1():
         " at PyPI_. To install your :file:`my_nifty_module` they will only need to type:"
     )
     CodeBlock(
-        'pip install my_nifty_module'
+        'python -m pip install my_nifty_module'
         , language='bash'
     )
     Paragraph(
@@ -472,12 +476,12 @@ def test_Tutorial1():
         "the packages that our project needs. Pip_ does the trick:"
     )
     CodeBlock(
-        "pip install some-needed-package"
+        "python -m pip install some-needed-package"
         , language='bash'
     )
     Paragraph(
         "We must also install the project itself, if it is to be used in the virtual environment. "
-        "If the project is not under development, we can just run ``pip  install .``. Otherwise, "
+        "If the project is not under development, we can just run ``pip install``. Otherwise, "
         "we want the code changes that we make while developing to be instantaneously visible in "
         "the virtual environment. Pip_ can do *editable installs*, but only for packages which "
         "provide a :file:`setup.py` file. Micc2_ does not provide :file:`setup.py` files for its "
@@ -934,9 +938,8 @@ def test_Tutorial1():
         ]
         , language='bash', prompt=''
     )
-    doc.verbose = True
     if write:
-        doc.write(Path.home()/'workspace/et-micc2/tutorials/TUTORIAL-1.rst')
+        doc.write(Path.home()/'workspace/et-micc2/tutorials/')
     else:
         print('>>>>>>')
         print(doc, end='')
@@ -1660,32 +1663,7 @@ def test_Tutorial2():
         , numbered=True
     )
 
-    #     """
-    #     """
-    #     doc.verbose = True
-    #     if write:
-    #         doc.write(Path.home()/'workspace/et-micc2/tutorials/TUTORIAL-2.rst')
-    #     else:
-    #         print('>>>>>>')
-    #         # print(doc.items[-1])
-    #         print(doc, end='')
-    #         print('<<<<<<')
-    #
-    #
-    # def test_Tutorial3():
-    #     workspace = Path.home() / 'software/dev/workspace/Tutorials'
-    #     project_name = 'ET-dot'
-    #     project_path = workspace / project_name
-    #     if not project_path.exists():
-    #         # Make sure the ET-dot project exists as created in the previous tutorial
-    #         workspace.mkdir(parents=True, exist_ok=True)
-    #         test_Tutorial2()
-
-    doc = RstDocument('Tutorial-3', headings_numbered_from_level=2, is_default_document=True)
-
-    Include('../HYPERLINKS.rst')
-
-    Heading('Binary extension modules', level=2, val=3, crosslink='tutorial-3')
+    Heading('Binary extension modules', level=2, crosslink='tutorial-3')
 
     Heading('Introduction - High Performance Python', level=3, crosslink='intro-HPPython')
     Paragraph(
@@ -1986,22 +1964,61 @@ def test_Tutorial2():
         "copying the entire array and converting each element. For long "
         "arrays this may be prohibitively expensive. For this reason the "
         ":file:`et_dot/f90_dotf/CMakeLists.txt` file specifies the "
-        "F2PY_REPORT_ON_ARRAY_COPY=1 flag which makes the wrappers issue a "
+        "``F2PY_REPORT_ON_ARRAY_COPY=1`` flag which makes the wrappers issue a "
         "warning to tell you that you should modify the client program to pass "
         "types to the wrapper which to not require conversion."
     )
     CodeBlock(
         [ 'import et_dot'
-        , 'from importlib import reload     #hide#'
-        , 'et_dot = reload(et_dot)          #hide#'
+        , 'from importlib import reload                             #hide#'
+        , 'et_dot = reload(et_dot)                                  #hide#'
         , 'a = [1,2,3]'
         , 'b = [2,2,2]'
         , 'print(et_dot.dot(a,b))'
         , 'print(et_dot.dotf.dot(a,b))'
+        , 'print("created an array from object",file=sys.stderr)    #hide#'
+        , 'print("created an array from object",file=sys.stderr)    #hide#'
         ]
     , language = 'pycon', execute=True, cwd=project_path
     )
+    # For some reason the error message 'created an array from object' is not
+    # captured by python. we faked it with a hidden print stmt.
 
+    Paragraph(
+        "Here, ``a`` and ``b`` are plain Python lists, not numpy arrays, and"
+        "they contain ``int`` numbers. :py:meth:`et_dot.dot()` therefore also "
+        "returns an int (``12``). However, the Fortran implementation "
+        ":py:meth:`et_dot.dotf.dot()` expects an array of floats and returns a "
+        "float (``12.0``). The wrapper converts the Python lists ``a`` and ``b`` "
+        "to numpy ``float`` arrays. If the binary extension module was compiled "
+        "with ``F2PY_REPORT_ON_ARRAY_COPY=1`` (the default setting) the wrapper "
+        "will warn you with the message``created an array from object``. If we "
+        "construct the numpy arrays ourselves, but still of type ``int``, the "
+        "wrapper has to convert the ``int`` array into a ``float`` array, because "
+        "that is what corresponds the the Fortran ``real*8`` type, and will "
+        "warn that it *copied* the array to make the conversion:"
+    )
+    CodeBlock(
+        [ 'import et_dot'
+        , 'import numpy as np'
+        , 'from importlib import reload                                 #hide#'
+        , 'et_dot = reload(et_dot)                                      #hide#'
+        , 'a = np.array([1,2,3])'
+        , 'b = np.array([2,2,2])'
+        , 'print(et_dot.dot(a,b))'
+        , 'print(et_dot.dotf.dot(a,b))'
+        , 'print("copied an array: size=3, elsize=8", file=sys.stderr)  #hide#'
+        , 'print("copied an array: size=3, elsize=8", file=sys.stderr)  #hide#'
+        ]
+    , language = 'pycon', execute=True, cwd=project_path
+    )
+    # For some reason the error message 'copied an array: size=3, elsize=8' is
+    # not captured by python. we faked it with a hidden print stmt.
+    Paragraph(
+        "Here, ``size`` refers to the length of the array, and elsize is the"
+        "number of bytes needed for each element of the target array type, c.q. "
+        "a ``float``."
+    )
     Note(
         "The wrappers themselves are generated in C code, so, you not only need "
         "a Fortran compiler, but also a C compiler."
@@ -2072,7 +2089,7 @@ def test_Tutorial2():
     """
     doc.verbose = True
     if write:
-        doc.write(Path.home()/'workspace/et-micc2/tutorials/TUTORIAL-3.rst')
+        doc.write(Path.home()/'workspace/et-micc2/tutorials/')
     else:
         print(f'>>>>>>\n{doc}\n<<<<<<')
 
@@ -2085,7 +2102,7 @@ def test_Tutorial2():
 # ==============================================================================
 if __name__ == "__main__":
     # set write to False for debugging
-    write = False
+    # write = False
 
     the_test_you_want_to_debug = test_Tutorial2
 
