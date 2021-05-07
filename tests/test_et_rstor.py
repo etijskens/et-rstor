@@ -4,7 +4,25 @@
 
 from et_rstor import *
 from pathlib import Path
-import os
+import re
+import sysconfig
+
+def test_re():
+    r = re.compile(r"<(((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z]){2,6}([a-zA-Z0-9\.\&\/\?\:@\-_=#])*)>`_([,.:;!?\"\')}]?|(\.\.\.))\Z")
+    for word in ["<https://www.sphinx-doc.org/en/master/>`_."]:
+        m = r.match(word)
+        for i in range(3):
+            print(f"'{m.group(i)}'")
+        assert m
+
+
+def test_TextWrapper():
+    tw = TextWrapper(width=40)
+    text = "The *MIT license* is a **very liberal** license and the ``default option``. If you’re unsure which " \
+           "license to choose, you can use resources such as `GitHub’s Choose a License <https://choosealicense.com>`_!"
+    tw.wrap(text)
+
+
 
 write = True
 
@@ -122,6 +140,11 @@ def test_Tutorial1():
     Paragraph(
         "To apply a Micc2_ command to a project that is not in the current working directory "
         "see :ref:`micc-project-path`."
+    )
+    Note(
+        "Micc2 has a built-in help function: ``micc2 --help`` shows the global options, "
+        "which appear in front of the subcommand, and lists the subcommands, and "
+        "``micc2 subcommand --help``, prints detailed help for a subcommand."
     )
     Paragraph(
         f"Above we have created a project for a simple Python *module*, that is, the "
@@ -933,7 +956,7 @@ def test_Tutorial2():
 
     Include('../HYPERLINKS.rst')
 
-    Heading('A first real project',level=2, crosslink='first-project')
+    Heading('A first real project',level=2, crosslink='tutorial-2')
 
     Paragraph(
         "Let's start with a simple problem: a Python module that computes the "
@@ -948,14 +971,28 @@ def test_Tutorial2():
     Paragraph(
         "First, we set up a new project for this *dot* project, with the name "
         ":file:`ET-dot`, ``ET`` being my initials (check out :ref:`project-and-module-naming`). "
-        "Not knowing beforehand how involved this project will become, "
-        "we create a simple *module* project without a remote Github_ repository:"
+        # "Not knowing beforehand how involved this project will become, "
+        # "we create a simple *module* project without a remote Github_ repository:"
     )
     project_name = 'ET-dot'
     project_path = workspace / project_name
     CodeBlock(
-        f'micc2 create {project_name} --remote=none'
+        f'micc2 create {project_name} --package --remote=none'
         , language='bash', execute=True, cwd=workspace
+    )
+    #--------------------------------------------------------------------------------
+    # We want to be able use the packagee we create in this tutorial. Apparently,
+    # Python cannot reload the module correctly after it changes its structure from
+    # module to package. So, this is the true reason why we need to create a
+    # package from the beginning: otherwise we would not be able to execute the
+    # et_dot's code inside the tutorial.
+    #--------------------------------------------------------------------------------
+    Paragraph(
+        "We already create a package project, rather than the default module project, "
+        "just to avoid having to ``micc2 convert-to-package`` later, and to be prepared "
+        "for having to add other components (See the :ref:`modules-and-packages` section"
+        "for details on the difference between projects with a module structure and a "
+        "package structure)."
     )
     Paragraph(
         "We ``cd`` into the project directory, so Micc2_ knows is as the current project."
@@ -993,7 +1030,7 @@ def test_Tutorial2():
         , '        result += a[i]*b[i]'
         , '    return result'
         ]
-        , language='python', copyto=project_path/'et_dot.py'
+        , language='python', copyto=project_path/'et_dot/__init__.py'
     )
     Paragraph(
         "We defined a :py:meth:`dot` method with an informative doc-string that describes "
@@ -1033,7 +1070,7 @@ def test_Tutorial2():
         , 'expected = 1*4.1 + 2*4.2 +3*4.3'
         , 'print(f"a_dot_b = {a_dot_b} == {expected}")'
         ]
-        , language='python-interpreter', execute=True, cwd=project_path
+        , language='pycon', execute=True, cwd=project_path
     )
     Note(
         'This dot product implementation is naive for several reasons:'
@@ -1254,7 +1291,7 @@ def test_Tutorial2():
         [ "print( 1.0 + 1e16 )"
         , "print( 1e16 + 1.0 )"
         ]
-        , language='python-interpreter', execute=True
+        , language='pycon', execute=True
     )
     Paragraph(
         "Because ``1e16`` is a 1 followed by 16 zeroes, adding ``1`` would alter the 17th digit,"
@@ -1266,7 +1303,7 @@ def test_Tutorial2():
         , "print( 1e16 - 1e16 + 1.0 )"
         , "print( 1.0 + 1e16 - 1e16 )"
         ]
-        , language='python-interpreter', execute=True
+        , language='pycon', execute=True
     )
     Paragraph(
         "Although each of these expressions should yield ``0.0``, if they were real numbers, "
@@ -1278,7 +1315,7 @@ def test_Tutorial2():
         , "1e16 - 1e16 + 1.0 = ( 1e16 - 1e16 ) + 1.0 = 0.0  + 1.0  = 1.0"
         , "1.0 + 1e16 - 1e16 = ( 1.0 + 1e16 ) - 1e16 = 1e16 - 1e16 = 0.0"
         ]
-        , language='python-interpreter'
+        , language='pycon'
     )
     Paragraph(
         "There are several lessons to be learned from this:"
@@ -1343,8 +1380,9 @@ def test_Tutorial2():
     CodeBlock(
         [ "import et_dot"
         , "et_dot.dot([1,2],[1,'two'])"
+        , "del et_dot #hide#"
         ]
-        , language='python-interpreter', execute=True, cwd=project_path, error_ok=True
+        , language='pycon', execute=True, cwd=project_path, error_ok=True
     )
     Paragraph(
         "Note that it is not the product ``a[i]*b[i]`` for ``i=1`` that is wreaking havoc, "
@@ -1523,10 +1561,10 @@ def test_Tutorial2():
     Heading("Comparison to Numpy", level=4, crosslink='comparison-numpy')
 
     Paragraph(
-        "As said earlier, our implementation of the dot product is rather naive. "
-        "If you want to become a good programmer, you should understand that you "
-        "are probably not the first researcher in need of a dot product implementation. "
-        "For most linear algebra problems, `Numpy <https://numpy.org>`_ provides very "
+        "As said earlier, our implementation of the dot product is rather "
+        "naive. If you want to become a good programmer, you should understand "
+        "that you are probably not the first researcher in need of a dot product "
+        "implementation. For most linear algebra problems, Numpy_ provides very "
         "efficient implementations.Below the modified :file:`run1.py` script adds "
         "timing results for the Numpy_ equivalent of our code."
     )
@@ -1569,9 +1607,9 @@ def test_Tutorial2():
         ,language='bash', execute=True, cwd=project_path
     )
     Paragraph(
-        "Obviously, Numpy_ does about an order of magnitude better than our "
-        "naive dot product implementation. It is important to understand the "
-        "reasons for this improvement:"
+        "Obviously, numpy does significantly better than our naive dot product "
+        "implementation. It completes the dot product in 7.5% of the time. It is "
+        "important to understand the reasons for this improvement:"
     )
     List(
         [ "Numpy_ arrays are contiguous data structures of floating point numbers, "
@@ -1586,6 +1624,10 @@ def test_Tutorial2():
           "processors hardware features, such as *vectorization* and "
           "*fused multiply-add* (FMA)."
         ]
+    )
+    Note(
+        "Note that also the initialisation of the arrays with numpy is almost 6 times "
+        "faster, for roughly the same reasons."
     )
 
     Heading('Conclusion', level=4, crosslink='conclusion')
@@ -1618,32 +1660,423 @@ def test_Tutorial2():
         , numbered=True
     )
 
+    #     """
+    #     """
+    #     doc.verbose = True
+    #     if write:
+    #         doc.write(Path.home()/'workspace/et-micc2/tutorials/TUTORIAL-2.rst')
+    #     else:
+    #         print('>>>>>>')
+    #         # print(doc.items[-1])
+    #         print(doc, end='')
+    #         print('<<<<<<')
+    #
+    #
+    # def test_Tutorial3():
+    #     workspace = Path.home() / 'software/dev/workspace/Tutorials'
+    #     project_name = 'ET-dot'
+    #     project_path = workspace / project_name
+    #     if not project_path.exists():
+    #         # Make sure the ET-dot project exists as created in the previous tutorial
+    #         workspace.mkdir(parents=True, exist_ok=True)
+    #         test_Tutorial2()
+
+    doc = RstDocument('Tutorial-3', headings_numbered_from_level=2, is_default_document=True)
+
+    Include('../HYPERLINKS.rst')
+
+    Heading('Binary extension modules', level=2, val=3, crosslink='tutorial-3')
+
+    Heading('Introduction - High Performance Python', level=3, crosslink='intro-HPPython')
+    Paragraph(
+        "Suppose for a moment that our dot product implementation :py:meth:`et_dot.dot()` "
+        "we developed in tutorial-2` is way too slow to be practical for the research "
+        "project that needs it, and that we did not have access to fast dot product "
+        "implementations, such as :py:meth:`numpy.dot()`. The major advantage we took "
+        "from Python is that coding :py:meth:`et_dot.dot()` was extremely easy, and even "
+        "coding the tests wasn't too difficult. In this tutorial you are about to discover "
+        "that coding a highly efficient replacement for :py:meth:`et_dot.dot()` is not too "
+        "difficult either. There are several approaches for this. Here are a number of "
+        "highly recommended links covering them:"
+    )
+    List(
+        [ "`Why you should use Python for scientific research <https://developer.ibm.com/dwblog/2018/use-python-for-scientific-research/>`_"
+        , "`Performance Python: Seven Strategies for Optimizing Your Numerical Code <https://www.youtube.com/watch?v=zQeYx87mfyw>`_"
+        , "`High performance Python 1 <http://www.admin-magazine.com/HPC/Articles/High-Performance-Python-1>`_"
+        , "`High performance Python 2 <http://www.admin-magazine.com/HPC/Articles/High-Performance-Python-2>`_"
+        , "`High performance Python 3 <http://www.admin-magazine.com/HPC/Articles/High-Performance-Python-3>`_"
+        , "`High performance Python 4 <http://www.admin-magazine.com/HPC/Articles/High-Performance-Python-4>`_"
+        ]
+    )
+    Paragraph(
+        "Two of the approaches discussed in the *High Performance Python* series involve "
+        "rewriting your code in Modern Fortran or C++ and generate a shared library that "
+        "can be imported in Python just as any Python module. This is exactly the approach "
+        "taken in important HPC Python modules, such as Numpy_, pyTorch_ and pandas_."
+        "Such shared libraries are called *binary extension modules*. Constructing binary "
+        "extension modules is by far the most scalable and flexible of all current "
+        "acceleration strategies, as these languages are designed to squeeze the maximum of "
+        "performance out of a CPU."
+    )
+    Paragraph(
+        "However, figuring out how to build such binary extension modules is a bit of a "
+        "challenge, especially in the case of C++. This is in fact one of the main reasons "
+        "why Micc2_ was designed: facilitating the construction of binary extension modules "
+        "and enabling the developer to create high performance tools with ease. To that end, "
+        "Micc2_ can provide boilerplate code for binary extensions as well a practical wrapper "
+        "for building the binary extension modules, the ``micc2 build`` command. This command "
+        "uses CMake_ to pass the build options to the compiler, while bridging the gap between "
+        "C++ and Fortran, on one hand and Python on the other hand using pybind11_ and f2py_. "
+        "respectively. This is illustrated in the figure below:"
+    )
+    Image('../tutorials/im-building.png')
+    Paragraph(
+        "There is a difference in how f2py_ and pybind11_ operate. F2py_ is an *executable* "
+        "that inspects the Fortran source and create wrappers for the subprograms it finds and "
+        "uses the compiler to build the extension module. (The wrappers are in C, so f2py_ needs "
+        "a C compiler as well). Pybind11_ is a *C++ template library* that is used to express "
+        "the interface between Python and C++."
+    )
+
+    Heading('Choosing between Fortran and C++ for binary extension modules', level=4, crosslink='f90-or-cpp')
+
+    Paragraph(
+        "Here are a number of arguments that you may wish to take into account for choosing the "
+        "programming language for your binary extension modules:"
+    )
+    List(
+        [ "Fortran is a simpler language than C++."
+        , "It is easier to write efficient code in Fortran than C++."
+        , "C++ is a general purpose language (as is Python), whereas Fortran is meant for "
+          "scientific computing. Consequently, C++ is a much more expressive language."
+        , "C++ comes with a huge standard library, providing lots of data structures and "
+          "algorithms that are hard to match in Fortran. If the standard library is not "
+          "enough, there are also the highly recommended `Boost <https://boost.org>`_ "
+          "libraries and many other high quality domain specific libraries. There are also "
+          "domain specific libraries in Fortran, but their count differs by an order of "
+          "magnitude at least."
+        , "With Pybind11_ you can almost expose anything from the C++ side to Python, and "
+          "vice versa, not just functions."
+        , "Modern Fortran is (imho) not as good documented as C++. Useful places to look "
+          "for language features and idioms are:"
+        ]
+    )
+    List(
+        [ 'Fortran: https://www.fortran90.org/'
+        , 'C++: http://www.cplusplus.com/'
+        , 'C++: https://en.cppreference.com/w/'
+        ]
+        , indent=4
+    )
+    Paragraph(
+        "In short, C++ provides much more possibilities, but it is not for the novice. "
+        "As to my own experience, I discovered that working on projects of moderate "
+        "complexity I progressed significantly faster using Fortran rather than C++, "
+        "despite the fact that my knowledge of Fortran is quite limited compared to C++. "
+        "However, your mileage may vary."
+    )
+
+    Heading('Adding Binary extensions to a Micc2_ project',level=3, crosslink='add-bin-ext')
+
+    Paragraph(
+        "Adding a binary extension to your current project is simple. To add a binary "
+        "extension 'foo' written in (Modern) Fortran, run:"
+    )
+    CodeBlock(
+        "micc add foo --f90"
+        , language='bash'
+    )
+    Paragraph(
+        "and for a C++ binary extension, run:"
+    )
+    CodeBlock(
+        "micc add bar --cpp"
+        , language='bash'
+    )
+    Paragraph(
+        "The ``add`` subcommand adds a component to your project. It specifies a name, "
+        "here, ``foo``, and a flag to specify the kind of the component, ``--f90`` for a "
+        "Fortran binary extension module, ``--cpp`` for a C++ binary extension module. "
+        "Other components are a Python sub-module with module structure (``--module``), "
+        "or package structure ``--package``, and a CLI script (`--cli` and `--clisub`). "
+        "More details about these other components are found in :ref:`tutorial-4`."
+    )
+    Paragraph(
+        "You can add as many components to your code as you want. However, the project "
+        "must have a *package* structure (see :ref:`modules-and-packages` for how to "
+        "convert a project with a *module* structure)."
+    )
+    Paragraph(
+        "The binary modules are build with the ``micc2 build`` command. This build all"
+        "binary extension modules in the project. To only build the ``foo`` binary "
+        "extension use the ``-m`` flag and specify the module to build:"
+    )
+    CodeBlock(
+        "micc2 build -m foo"
+        , language='bash'
+    )
+    Paragraph(
+        "As Micc2_ always creates complete working examples you can build the "
+        "binary extensions right away and run their tests with pytest_"
+    )
+    Paragraph(
+        "If there are no syntax errors the binary extensions will be built, "
+        "and you will be able to import the modules :py:mod:`foo` and "
+        ":py:mod:`bar` in your project scripts and use their subroutines "
+        "and functions. Because :py:mod:`foo` and :py:mod:`bar` are "
+        "submodules of your micc_ project, you must import them as:"
+    )
+    CodeBlock(
+        [ "import my_package.foo"
+        , "import my_package.bar"
+        , ""
+        , "# call foofun in my_package.foo"\
+        , "my_package.foo.foofun(...)"
+        , ""
+        , "# call barfun in my_package.bar"\
+        , "my_package.bar.barfun(...)"
+        ]
+    )
+
+    Heading('Build options', level=4, crosslink='micc2-build-options')
+
+    Paragraph(
+        "Here is an overview of ``micc2 build`` options:"
+    )
+    CodeBlock(
+        "micc2 build --help"
+        , language='bash', execute=True
+    )
+
+    Heading('Building binary extension modules from Fortran', level=3, crosslink='building-f90')
+
+    Paragraph(
+        'So, in order to implement a more efficient dot product, let us add a Fortran '
+        'binary extension module with name ``dotf``:'
+    )
+    # CodeBlock(
+    #     "micc2 add dotf --f90"
+    #     , language='bash', execute=True, cwd=project_path, error_ok=True
+    # )
+    # Paragraph(
+    #     "For Micc2 to be able to add components to a project, the project must "
+    #     "have package structure. We did not foresee that when we created the "
+    #     ":file:`ET-dot` project with a module structure, but, fortunately, Micc2 "
+    #     "can convert it:"
+    # )
+    # CodeBlock(
+    #     "micc2 convert-to-package --overwrite"
+    #     , language='bash', execute=True, cwd=project_path, error_ok=True
+    # )
+    # Paragraph(
+    #     "(See the :ref:`modules-and-packages` section for the meaning of the "
+    #     "``--overwrite`` flag). We can now run the ``micc2 add`` command again:"
+    # )
+    CodeBlock(
+        "micc2 add dotf --f90"
+        , language='bash', execute=True, cwd=project_path, error_ok=True
+    )
+    Paragraph(
+        "The command now runs successfully, and the output tells us where to "
+        "enter the Fortran source code, the build settings, the test code and "
+        "the documentation of the added module. Everything related to the "
+        ":file:`dotf` sub-module is in subdirectory :file:`ET-dot/et_dot/f90_dotf`. "
+        "That directory has a ``f90_`` prefix indicating that it relates to a "
+        "Fortran binary extension module. As useal, these files contain "
+        "already working example code that you an inspect to learn how things "
+        "work."
+    )
+    Paragraph(
+        "Let's continue our development of a Fortran version of the dot product. "
+        "Open file :file:`ET-dot/et_dot/f90_dotf/dotf.f90` in your favorite editor "
+        "or IDE and replace the existing example code in the Fortran source file with:"
+    )
+    CodeBlock(
+        [ 'function dot(a,b,n)'
+        , '  ! Compute the dot product of a and b'
+        , '    implicit none'
+        , '  !'
+        , '  !-----------------------------------------------'
+        , '    integer*4              , intent(in)    :: n'
+        , '    real*8   , dimension(n), intent(in)    :: a,b'
+        , '    real*8                                 :: dot'
+        , '  ! declare local variables'
+        , '    integer*4 :: i'
+        , '  !-----------------------------------------------'
+        , '    dot = 0.'
+        , '    do i=1,n'
+        , '        dot = dot + a(i) * b(i)'
+        , '    end do'
+        , 'end function dot'
+        ]
+        , language='fortran', copyto=project_path / 'et_dot/f90_dotf/dotf.f90'
+    )
+    Paragraph(
+        "The binary extension module can now be built by running ``micc2 build``. "
+        "This produces a lot of output, which comes from cmake, f2py and the "
+        "compilation process:"
+    )
+    CodeBlock(
+        "micc2 build --clean"
+        , language='bash', execute=True, cwd=project_path
+    )
+
+    extension_suffix = sysconfig.get_config_var('EXT_SUFFIX')
+    pydist, pyver, os_so = extension_suffix.split('-')
+    os,soext = os_so.split('.')
+
+
+    Paragraph(
+        f"If there are no syntax errors in the Fortran code, the binary extension "
+        f"module will build successfully, as above and be installed in a the "
+        f"package directory of our project :file:`ET-dot/et_dot`. The full module "
+        f"name is :file:`dotf{extension_suffix}`. The extension is composed of: "
+        f"the kind of Python distribution (``{pydist[1:]}``), the MAJORminor version "
+        f"string of the Python version being used (``{pyver}`` as we are running "
+        f"Python {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}), "
+        f"the OS on which we are working (``{os}``), and an extension indicating "
+        f"a shared library on this OS (``.{soext}``). This file can be imported "
+        f"in a Python script, by using the filename without the extension, i.e. "
+        f"``dotf``. As the module was built successfully, we can test it. Here is "
+        f"some test code. Enter it in file :file:`ET-dot/tests/test_f90_dotf.py`:"
+    )
+    CodeBlock(
+        [ 'import numpy as np'
+        , 'import et_dot'
+        , '# create an alias for the dotf binary extension module'
+        , 'f90 = et_dot.dotf'
+        , ''
+        , 'def test_dot_aa():'
+        , '    # create an numpy array of floats:'
+        , '    a = np.array([0,1,2,3,4],dtype=float)'
+        , '    # use the original dot implementation to compute the expected result:'
+        , '    expected = et_dot.dot(a,a)'
+        , '    # call the dot function in the binary extension module with the same arguments:'
+        , '    a_dot_a = f90.dot(a,a)'
+        , '    assert a_dot_a == expected'
+        ]
+        , language='Python', copyto=project_path / 'tests/test_f90_dotf.py'
+    )
+    Paragraph(
+        "Then run the test (we only run the test for the dotf module, as "
+        "we did not touch the :py:meth:`et_dot.dot` implementation):"
+    )
+    CodeBlock(
+        "pytest tests/test_f90_dotf.py"
+        , language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "The astute reader will notice the magic that is happening here: "
+        "``a`` is a numpy array, which is passed as the first and second "
+        "parameter to the :py:meth:`et_dot.dotf.dot` function defined in "
+        "our binary extension module. Note that the third parameter of "
+        "the :py:meth:`et_dot.dotf.dot` function is omitted. How did that "
+        "happen? The Micc2 build function uses f2py_ to build the binary "
+        "extension module. When calling :py:meth:`et_dot.dotf.dot` you are "
+        "in fact calling a wrapper function that f2py created that extracts "
+        "the pointer to the memory of array ``a`` and its length. The wrapper "
+        "function then calls the Fortran function with the approprioate "
+        "parameters as specified in the Fortran function definition. This "
+        "invisible wrapper function is in fact rather intelligent, it even "
+        "handles type conversions. E.g. we can pass in a Python array, and "
+        "the wrapper will convert it into a numpy array, or an array of ints, "
+        "and the wrapper will convert it into a float array. In fact the "
+        "wrapper considers all implicit type conversions allowed by Python. "
+        "However practical this feature may be, type conversion requires "
+        "copying the entire array and converting each element. For long "
+        "arrays this may be prohibitively expensive. For this reason the "
+        ":file:`et_dot/f90_dotf/CMakeLists.txt` file specifies the "
+        "F2PY_REPORT_ON_ARRAY_COPY=1 flag which makes the wrappers issue a "
+        "warning to tell you that you should modify the client program to pass "
+        "types to the wrapper which to not require conversion."
+    )
+    CodeBlock(
+        [ 'import et_dot'
+        , 'from importlib import reload     #hide#'
+        , 'et_dot = reload(et_dot)          #hide#'
+        , 'a = [1,2,3]'
+        , 'b = [2,2,2]'
+        , 'print(et_dot.dot(a,b))'
+        , 'print(et_dot.dotf.dot(a,b))'
+        ]
+    , language = 'pycon', execute=True, cwd=project_path
+    )
+
+    Note(
+        "The wrappers themselves are generated in C code, so, you not only need "
+        "a Fortran compiler, but also a C compiler."
+    )
+    Paragraph(
+        "Note that the test code did not explicitly import :py:mod:`et_dot.dotf`, "
+        "just :py:mod:`et_dot`. This is only possible because Micc2 has modified "
+        ":file:`et_dot/__init__.py` to import every submodule that has been added "
+        "to the project:"
+    )
+    CodeBlock(
+        [ '# in file et_dot/__init__.py'
+        , 'import et_dot.dotf'
+        ]
+        , language='python'
+    )
+    Paragraph(
+        "If the submodule :py:mod:`et_dot.dotf` was not built or failed to build, "
+        "that import statement will fail and raise a :py:exc:`ModuleNotFoundError` "
+        "exception. Micc2 has added a little extra magic to attempt to build the "
+        "module automatically in that case:"
+    )
+    CodeBlock(
+        [ '# in file et_dot/__init__.py'
+        , 'try:'
+        , '    import et_dot.dotf'
+        , 'except ModuleNotFoundError as e:'
+        , '    # Try to build this binary extension:'
+        , '    from pathlib import Path'
+        , '    import click'
+        , '    from et_micc2.project import auto_build_binary_extension'
+        , '    msg = auto_build_binary_extension(Path(__file__).parent, "dotf")'
+        , '    if not msg:'
+        , '        import et_dot.dotf'
+        , '    else:'
+        , '        click.secho(msg, fg="bright_red")'
+        ]
+        , language='python'
+    )
+
+    Heading("Dealing with Fortran modules", level=4, crosslink='f90-modules')
+
+    Paragraph(
+        "Modern Fortran has a *module* concept of its own. This may be a bit confusing, "
+        "as we have been talking about modules in a Python context, so far. The Fortran "
+        "module is meant to group variable and procedure definitions that conceptually "
+        "belong together. Inside fortran they are comparable to C/C++ header files. Here "
+        "is an example:"
+    )
+    CodeBlock(
+        [ 'MODULE my_f90_module'
+        , 'implicit none'
+        , 'contains'
+        , '  function dot(a,b)'
+        , '    ...'
+        , '  end function dot'
+        , 'END MODULE my_f90_module'
+        ]
+        , language='fortran'
+    )
+    Paragraph(
+        "F2py translates the module containing the Fortran ``dot`` definition into "
+        "an extra *namespace* appearing in between the :py:mod:`dotf` Python submodule "
+        "and the :py:meth:`dot` function, which is found in ``et_dot.dotf.my_f90_module`` "
+        "instead of in ``et_dot.dotf``."
+    )
     """
     """
     doc.verbose = True
     if write:
-        doc.write(Path.home()/'workspace/et-micc2/tutorials/TUTORIAL-2.rst')
+        doc.write(Path.home()/'workspace/et-micc2/tutorials/TUTORIAL-3.rst')
     else:
-        print('>>>>>>')
-        # print(doc.items[-1])
-        print(doc, end='')
-        print('<<<<<<')
+        print(f'>>>>>>\n{doc}\n<<<<<<')
 
 
-import re
-def test_re():
-    r = re.compile(r"<(((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z]){2,6}([a-zA-Z0-9\.\&\/\?\:@\-_=#])*)>`_([,.:;!?\"\')}]?|(\.\.\.))\Z")
-    for word in ["<https://www.sphinx-doc.org/en/master/>`_."]:
-        m = r.match(word)
-        for i in range(3):
-            print(f"'{m.group(i)}'")
-        assert m
-
-def test_TextWrapper():
-    tw = TextWrapper(width=40)
-    text = "The *MIT license* is a **very liberal** license and the ``default option``. If you’re unsure which " \
-           "license to choose, you can use resources such as `GitHub’s Choose a License <https://choosealicense.com>`_!"
-    tw.wrap(text)
 # ==============================================================================
 # The code below is for debugging a particular test in eclipse/pydev.
 # (otherwise all tests are normally run with pytest)
@@ -1651,6 +2084,9 @@ def test_TextWrapper():
 # that the source directory is on the path
 # ==============================================================================
 if __name__ == "__main__":
+    # set write to False for debugging
+    write = False
+
     the_test_you_want_to_debug = test_Tutorial2
 
     print("__main__ running", the_test_you_want_to_debug)
