@@ -1908,9 +1908,10 @@ def test_Tutorial2():
     extension_suffix = sysconfig.get_config_var('EXT_SUFFIX')
     pydist, pyver, os_so = extension_suffix.split('-')
     os,soext = os_so.split('.')
-
-
     Paragraph(
+        f"The command produces a lot of output, which comes from CMake, f2py, the"
+        f"compilation of the Fortran code, and the compilation of the wrappers of "
+        f"the fortran code, which are written in C."
         f"If there are no syntax errors in the Fortran code, the binary extension "
         f"module will build successfully, as above and be installed in a the "
         f"package directory of our project :file:`ET-dot/et_dot`. The full module "
