@@ -1889,6 +1889,12 @@ def test_Tutorial2():
         ]
         , language='fortran', copyto=project_path / 'et_dot/f90_dotf/dotf.f90'
     )
+    def annoying(output):
+        lines = output.splitlines(keepends=True)
+        keep_lines = []
+        for line in lines:
+            pass
+        return '\n'.join(keep_lines)
     Paragraph(
         "The binary extension module can now be built by running ``micc2 build``. "
         "This produces a lot of output, which comes from cmake, f2py and the "
@@ -2085,6 +2091,8 @@ def test_Tutorial2():
         "and the :py:meth:`dot` function, which is found in ``et_dot.dotf.my_f90_module`` "
         "instead of in ``et_dot.dotf``."
     )
+
+
     """
     """
     doc.verbose = True

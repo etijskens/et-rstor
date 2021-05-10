@@ -331,6 +331,9 @@ class CodeBlock(RstItem):
                 , execute=False
                 , cwd='.'
                 , error_ok=False
+                , stdout=True
+                , stderr=True
+                # , filter=None
                 , indent=4
                 , prompt=None
                 , copyto=None, append=False
@@ -350,6 +353,9 @@ class CodeBlock(RstItem):
         self.execute = execute
         self.cwd = cwd
         self.error_ok = error_ok
+        self.stdout = stdout
+        self.stderr = stderr
+        # self.filter = filter
         self.copyto = copyto
         self.append = append
         self.setup = setup
@@ -370,16 +376,26 @@ class CodeBlock(RstItem):
                     print(f"{self.language}@ {line}")
                     self.rst += f'{self.indent}{self.prompt}{line}\n'
                     # execute the command and add its output
+                    self.stdout = subprocess.PIPE if self.stdout else None
+                    self.stderr = subprocess.STDOUT if self.stderr else None
                     completed_process = subprocess.run( line
                                                       , cwd=self.cwd
-                                                      , stdout=subprocess.PIPE
-                                                      , stderr=subprocess.STDOUT
+                                                      , stdout=self.stdout
+                                                      , stderr=self.stderr
                                                       , shell=True
                                                       )
-                    output = self.indent + completed_process.stdout.decode('utf-8').replace('\n', '\n'+self.indent)
+                    output = completed_process.stdout.decode('utf-8')
+
+                    # if self.filter:
+                    #     output = filter(output)
+
+                    if self.indent:
+                        output = self.indent + output.replace('\n', '\n'+self.indent)
+
                     if completed_process.returncode and not self.error_ok:
                         print(output)
                         raise RuntimeError()
+
                     self.rst += output+'\n'
 
             elif self.language == 'pycon':
