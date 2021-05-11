@@ -332,7 +332,8 @@ class CodeBlock(RstItem):
                       , 'pycon': '>>> '
                       }
 
-    def __init__( self, lines
+    def __init__( self
+                , lines=[]
                 , language=''
                 , execute=False
                 , cwd='.'
@@ -479,6 +480,56 @@ class CodeBlock(RstItem):
             with self.copyto.open(mode=mode) as f:
                 for line in self.lines:
                     f.write(line + '\n')
+
+
+
+class Table(RstItem):
+    """ Table class
+
+    :param list-of-lists rows: a list of rows, each row being a list as well. First row is
+        title row.
+    """
+    def __init__(self
+                , rows
+                , document=None
+                 ):
+        super().__init__(document=document)
+        self.rows = rows
+        self.indent = 4*' '
+        self.rstor()
+        self.show_progress()
+
+    def rstor(self):
+        self.rst = ''
+        nrows = len(self.rows)
+        ncols = len(self.rows[0])
+        for row in self.rows[1:]:
+            if len(row) != ncols:
+                raise ValueError('all rows must have the same number of columns')
+        # Convert rows to str and find out the width of each column
+        wcol = ncols*[0]
+        for row in self.rows:
+            for c,val in enumerate(row):
+                sval = str(val)
+                row[c] = sval
+                w = len(sval)
+                wcol[c] = max(w,wcol[c])
+        # Insert lines
+        self.rows.insert(0, [])
+        self.rows.insert(2, [])
+        self.rows.append([])
+        for c in range(ncols):
+            line = wcol[c]*'='
+            self.rows[ 0].append(line)
+            self.rows[ 2].append(line)
+            self.rows[-1].append(line)
+        # compile table in rst format:
+        for row in self.rows:
+            self.rst += '\n' + self.indent
+            for c,val in enumerate(row):
+                self.rst += val.ljust(wcol[c]+2)
+
+        self.rst += '\n\n'
 
 
 ####################################################################################################
