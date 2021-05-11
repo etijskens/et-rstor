@@ -2066,6 +2066,47 @@ def test_Tutorial2():
         , language='python'
     )
 
+
+def filter_f90_cmakelists(lines):
+    startline = ( '# Set the build type:'   , '##########')
+    stopline = ('#<< begin boilerplate code', '# only boilerplate code below')
+    nsections = len(stopline)
+    omitted = '...                                                         # (boilerplate code omitted for clarity)'
+    lines_kept = [omitted]
+    start = False
+    section = 0
+    for line in lines:
+        stop = start and line.startswith(stopline[section])
+        if stop:
+            lines_kept.append(omitted)
+            start = False
+            section += 1
+            if section == nsections:
+                break
+        if not start:
+            start = line.startswith(startline[section])
+        if start:
+            if line.strip():
+                lines_kept.append(line[:-1])
+    return lines_kept
+
+
+def test_Tutorial331():
+    """Tutorial-2."""
+
+    workspace = Path.home() / 'software/dev/workspace/Tutorials'
+    # if workspace.exists():
+    #     shutil.rmtree(workspace)
+    # workspace.mkdir(parents=True, exist_ok=True)
+    project_name = 'ET-dot'
+    project_path = workspace / project_name
+
+    doc = RstDocument('Tutorial-331', headings_numbered_from_level=2, is_default_document=True)
+    doc.heading_numbers[2] = 3
+    doc.heading_numbers[3] = 3
+
+    Include('../HYPERLINKS.rst')
+
     Heading("Dealing with Fortran modules", level=4, crosslink='f90-modules')
 
     Paragraph(
@@ -2079,12 +2120,29 @@ def test_Tutorial2():
         [ 'MODULE my_f90_module'
         , 'implicit none'
         , 'contains'
-        , '  function dot(a,b)'
-        , '    ...'
+        , '  function dot(a,b,n)'
+        , '  ! Compute the dot product of a and b'
+        , '    implicit none'
+        , '  !'
+        , '  !-----------------------------------------------'
+        , '    integer*4              , intent(in)    :: n'
+        , '    real*8   , dimension(n), intent(in)    :: a,b'
+        , '    real*8                                 :: dot'
+        , '  ! declare local variables'
+        , '    integer*4 :: i'
+        , '  !-----------------------------------------------'
+        , '    dot = 0.'
+        , '    do i=1,n'
+        , '        dot = dot + a(i) * b(i)'
+        , '    end do'
         , '  end function dot'
         , 'END MODULE my_f90_module'
         ]
-        , language='fortran'
+        , language='fortran', copyto=project_path / 'et_dot/f90_dotf/dotf.f90'
+    )
+    CodeBlock(
+        "micc2 build --clean"
+        , language='bash', execute=True, cwd=project_path, hide=True
     )
     Paragraph(
         "F2py translates the module containing the Fortran ``dot`` definition into "
@@ -2092,15 +2150,86 @@ def test_Tutorial2():
         "and the :py:meth:`dot` function, which is found in ``et_dot.dotf.my_f90_module`` "
         "instead of in ``et_dot.dotf``."
     )
+    CodeBlock(
+        [ 'import numpy as np'
+        , 'import et_dot'
+        , 'from importlib import reload                                 #hide#'
+        , 'et_dot.dotf = reload(et_dot.dotf)                            #hide#'
+        , 'a = np.array([1.,2.,3.])'
+        , 'b = np.array([2.,2.,2.])'
+        , 'print(et_dot.dotf.my_f90_module.dot(a,b))'
+        , '# If typing this much annoys you, you can create an alias to the `Fortran module`:'
+        , 'f90 = et_dot.dotf.my_f90_module'
+        , 'print(f90.dot(a,b))'
+        ]
+        , language = 'pycon', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "This time there is no warning from the wrapper as ``a`` and ``b`` are "
+        "numpy arrays of type ``float``, which correspond to Fortran's ``real*8``, "
+        "so no conversion is needed."
+    )
 
+    Heading('Controlling the build', level=4, crosslink='control-build-f90')
 
+    Paragraph(
+        "The build parameters for our Fortran binary extension module are "
+        "detailed in the file :file:`et_dot/f90_dotf/CMakeLists.txt`. This "
+        "is a rather lengthy file, but most of it is boilerplate code which "
+        "you should not need to touch. The boilerplate sections are clearly "
+        "marked. By default this file specifies that a release version is to "
+        "be built. The file documents a set of CMake variables that can be "
+        "used to control the build type:"
+    )
+    List(
+        [ "CMAKE_BUILD_TYPE : DEBUG | MINSIZEREL | RELEASE* | RELWITHDEBINFO"
+        , "F2PY_noopt : turn off optimization options"
+        , "F2PY_noarch : turn off architecture specific optimization options"
+        , "F2PY_f90flags : additional compiler options"
+        , "F2PY_arch : architecture specific optimization options"
+        , "F2PY_opt : optimization options"
+        ]
+    )
+    Paragraph(
+        "In addition you can specify:"
+    )
+    List(
+        [ 'preprocessor macro definitions'
+        , 'include directories'
+        , 'link directories'
+        , 'link libraries'
+        ]
+    )
+    Paragraph(
+        "Here are the sections of :file:`CMakeLists.txt` to control the build. "
+        "Uncomment the relevant lines and modify them to your needs."
+    )
+    CodeBlock(
+        []
+        , copyfrom=workspace / '../et-micc2/' / 'et_micc2/templates/module-f90/{{cookiecutter.project_name}}/{{cookiecutter.package_name}}/f90_{{cookiecutter.module_name}}/CMakeLists.txt'
+        , filter=filter_f90_cmakelists
+    )
     """
-    """
+ .. _building-cpp:
+
+2.4 Building binary extensions from C++
+---------------------------------------
+To illustrate building binary extension modules from C++ code, let us also create a
+C++ implementation for the dot product. Such modules are called *cpp modules*.
+Analogously to our :py:mod:`dotf` module we will call the cpp module :py:mod:`dotc`,
+the ``c`` referring to C++.
+
+Use the ``micc add`` command to add a cpp module:
+
+.. code-block:: bash
+
+    > micc add dotc --cpp
+   """
     doc.verbose = True
     if write:
         doc.write(Path.home()/'workspace/et-micc2/tutorials/')
     else:
-        print(f'>>>>>>\n{doc}\n<<<<<<')
+        print(f'$$$$$$\n{doc}\n$$$$$$')
 
 
 # ==============================================================================
@@ -2112,8 +2241,11 @@ def test_Tutorial2():
 if __name__ == "__main__":
     # set write to False for debugging
     # write = False
-
-    the_test_you_want_to_debug = test_Tutorial2
+    if len(sys.argv) > 1:
+        index = sys.argv[1]
+        the_test_you_want_to_debug = eval(f'test_Tutorial{index}')
+    else:
+        the_test_you_want_to_debug = test_Tutorial331
 
     print("__main__ running", the_test_you_want_to_debug)
     the_test_you_want_to_debug()

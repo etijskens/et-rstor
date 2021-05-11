@@ -130,7 +130,7 @@ class RstItem():
     def show_progress(self):
         if self.document.verbose:
             print(f"\nrstor> {self.__class__.__name__}")
-            print(f">>>>>>\n{self.rst}<<<<<<\n")
+            print(f"$$$$$$\n{self.rst}$$$$$$\n")
 
 
     def rstor(self):
@@ -319,6 +319,12 @@ class CodeBlock(RstItem):
     :param bool append: append the code to the copyto destination instead of overwriting.
     :param callable() setup: function that has to be executed before the command lines.
     :param callable() cleanup: function that has to be executed before the command lines.
+
+    .. warning::
+
+            language=='pycon': if a module has been modified it must be reloaded (importlib.reload).
+            However, reloading a binary extension does not work. the CodeBlock must be executed in
+            a separate Python session.
     """
 
     default_prompts = { 'bash': '> '
@@ -333,10 +339,11 @@ class CodeBlock(RstItem):
                 , error_ok=False
                 , stdout=True
                 , stderr=True
-                # , filter=None
+                , hide=False
                 , indent=4
                 , prompt=None
                 , copyto=None, append=False
+                , copyfrom=None, filter=None
                 , setup=None, cleanup=None
                 , document = None
                 ):
@@ -355,18 +362,34 @@ class CodeBlock(RstItem):
         self.error_ok = error_ok
         self.stdout = stdout
         self.stderr = stderr
-        # self.filter = filter
+        self.hide = hide
         self.copyto = copyto
+        self.copyfrom = copyfrom
+        self.filter = filter
         self.append = append
         self.setup = setup
         self.cleanup = cleanup
 
+        if self.document.verbose:
+            print(f"\nrstor> {self.__class__.__name__}{' (hidden)' if self.hide else ''}")
+
         self.rstor()
-        self.show_progress()
+
+        if self.document.verbose and not self.hide:
+            print(f"$$$$$$\n{self.rst}$$$$$$\n")
 
 
     def rstor(self):
-        self.rst = f'.. code-block:: {self.language}\n\n'
+        self.rst = ''
+
+        if not self.hide:
+            self.rst = f'.. code-block:: {self.language}\n\n'
+
+        if self.copyfrom:
+            with self.copyfrom.open(mode='r') as f:
+                self.lines = f.readlines()
+            if self.filter:
+                self.lines = self.filter(self.lines)
 
         if self.execute:
             if self.setup:
@@ -374,7 +397,8 @@ class CodeBlock(RstItem):
             if self.language == 'bash':
                 for line in self.lines:
                     print(f"{self.language}@ {line}")
-                    self.rst += f'{self.indent}{self.prompt}{line}\n'
+                    if not self.hide:
+                        self.rst += f'{self.indent}{self.prompt}{line}\n'
                     # execute the command and add its output
                     self.stdout = subprocess.PIPE if self.stdout else None
                     self.stderr = subprocess.STDOUT if self.stderr else None
@@ -384,35 +408,31 @@ class CodeBlock(RstItem):
                                                       , stderr=self.stderr
                                                       , shell=True
                                                       )
-                    output = completed_process.stdout.decode('utf-8')
-
-                    # if self.filter:
-                    #     output = filter(output)
-
-                    if self.indent:
-                        output = self.indent + output.replace('\n', '\n'+self.indent)
+                    if not self.hide:
+                        output = completed_process.stdout.decode('utf-8')
+                        if self.indent:
+                            output = self.indent + output.replace('\n', '\n'+self.indent)
+                        self.rst += output+'\n'
 
                     if completed_process.returncode and not self.error_ok:
                         print(output)
                         raise RuntimeError()
 
-                    self.rst += output+'\n'
-
             elif self.language == 'pycon':
                 sys.path.insert(0,'.')
-                print(self.cwd)
+                # print(self.cwd)
                 with in_directory(self.cwd):
                     output = ''
                     for line in self.lines:
-                        print(f"{self.language}@ {line}")
-                        hide = '#hide#' in line
+                        print(f"{self.language}@ {line}") # show progress
+                        hide_line = '#hide#' in line
                         hide_stdout = '#hide_stdout#' in line
                         hide_stderr = '#hide_stderr#' in line
                         str_stdout = io.StringIO()
                         str_stderr = io.StringIO()
                         with redirect_stderr(str_stderr):
                             with redirect_stdout(str_stdout):
-                                if not hide:
+                                if not hide_line:
                                     output += f"{self.prompt}{line}\n"
                                 try:
                                     exec(line)
@@ -428,12 +448,11 @@ class CodeBlock(RstItem):
                                 if e and not hide_stderr:
                                     output += e
 
-
-
                     # indent the output if necessary
                     if self.indent:
                         output = self.indent + output.replace('\n', '\n' + self.indent)
-                    self.rst += '\n>>>\n' + output + '\n'
+
+                    self.rst += output
 
             else:
                 raise NotImplementedError()
