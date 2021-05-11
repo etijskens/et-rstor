@@ -4,12 +4,17 @@
 
 from pathlib import Path
 import re
-import sysconfig
 import sys
 if not '.' in sys.path:
     sys.path.insert(0, '.')
 
+import sysconfig
+extension_suffix = sysconfig.get_config_var('EXT_SUFFIX')
+pydist, pyver, os_so = extension_suffix.split('-')
+os,soext = os_so.split('.')
+
 from et_rstor import *
+
 
 def test_re():
     r = re.compile(r"<(((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z]){2,6}([a-zA-Z0-9\.\&\/\?\:@\-_=#])*)>`_([,.:;!?\"\')}]?|(\.\.\.))\Z")
@@ -27,10 +32,11 @@ def test_TextWrapper():
     tw.wrap(text)
 
 
-
 write = True
+workspace = Path.home() / 'software/dev/workspace/Tutorials'
+snippets = Path(__file__).parent / '../snippets'
 
-def test_Tutorial1():
+def test_TutorialGettingStarted():
     """Tutorial-1."""
 
     workspace = Path.home() / 'software/dev/workspace/Tutorials'
@@ -38,7 +44,7 @@ def test_Tutorial1():
         shutil.rmtree(workspace)
     workspace.mkdir(parents=True,exist_ok=True)
 
-    doc = RstDocument('Tutorial-1', headings_numbered_from_level=2, is_default_document=True)
+    doc = RstDocument('TutorialGettingStarted', headings_numbered_from_level=2, is_default_document=True)
 
     Include( '../HYPERLINKS.rst')
 
@@ -946,16 +952,17 @@ def test_Tutorial1():
         print('<<<<<<')
 
 
-def test_Tutorial2():
-    """Tutorial-2."""
+project_name = 'ET-dot'
+project_path = workspace / project_name
 
-    workspace = Path.home() / 'software/dev/workspace/Tutorials'
+def test_TutorialProject_et_dot_1():
+
     if workspace.exists():
         shutil.rmtree(workspace)
     workspace.mkdir(parents=True, exist_ok=True)
 
-    doc = RstDocument('Tutorial-2', headings_numbered_from_level=2, is_default_document=True)
-    doc.heading_numbers[2] += 1
+    doc = RstDocument('TutorialProject_et_dot_1', headings_numbered_from_level=2, is_default_document=True)
+    doc.heading_numbers[2] = 2
 
     Include('../HYPERLINKS.rst')
 
@@ -977,8 +984,6 @@ def test_Tutorial2():
         # "Not knowing beforehand how involved this project will become, "
         # "we create a simple *module* project without a remote Github_ repository:"
     )
-    project_name = 'ET-dot'
-    project_path = workspace / project_name
     CodeBlock(
         f'micc2 create {project_name} --package --remote=none'
         , language='bash', execute=True, cwd=workspace
@@ -1905,9 +1910,6 @@ def test_Tutorial2():
         , language='bash', execute=True, cwd=project_path
     )
 
-    extension_suffix = sysconfig.get_config_var('EXT_SUFFIX')
-    pydist, pyver, os_so = extension_suffix.split('-')
-    os,soext = os_so.split('.')
     Paragraph(
         f"The command produces a lot of output, which comes from CMake, f2py, the"
         f"compilation of the Fortran code, and the compilation of the wrappers of "
@@ -2065,43 +2067,41 @@ def test_Tutorial2():
         ]
         , language='python'
     )
+    Paragraph(
+        "Obviously, you should also add the other "
+        "tests we created for the Python implementation. "
+    )
 
 
-def filter_f90_cmakelists(lines):
-    startline = ( '# Set the build type:'   , '##########')
-    stopline = ('#<< begin boilerplate code', '# only boilerplate code below')
-    nsections = len(stopline)
-    omitted = '...                                                         # (boilerplate code omitted for clarity)'
-    lines_kept = [omitted]
-    start = False
-    section = 0
-    for line in lines:
-        stop = start and line.startswith(stopline[section])
-        if stop:
-            lines_kept.append(omitted)
-            start = False
-            section += 1
-            if section == nsections:
-                break
-        if not start:
-            start = line.startswith(startline[section])
-        if start:
-            if line.strip():
-                lines_kept.append(line)
-    return lines_kept
+class FilterCMakeLists:
+    def __init__(self,startline,stopline):
+        self.startline = listify(startline)
+        self.stopline = listify(stopline)
+    def __call__(self,lines):
+        nsections = len(self.stopline)
+        omitted = '...                                                         # (boilerplate code omitted for clarity)'
+        lines_kept = [omitted]
+        start = False
+        section = 0
+        for line in lines:
+            stop = start and line.startswith(self.stopline[section])
+            if stop:
+                lines_kept.append(omitted)
+                start = False
+                section += 1
+                if section == nsections:
+                    break
+            if not start:
+                start = line.startswith(self.startline[section])
+            if start:
+                if line.strip():
+                    lines_kept.append(line)
+        return lines_kept
 
 
-def test_Tutorial331():
-    """Tutorial-2."""
+def test_TutorialProject_et_dot_2():
 
-    workspace = Path.home() / 'software/dev/workspace/Tutorials'
-    # if workspace.exists():
-    #     shutil.rmtree(workspace)
-    # workspace.mkdir(parents=True, exist_ok=True)
-    project_name = 'ET-dot'
-    project_path = workspace / project_name
-
-    doc = RstDocument('Tutorial-331', headings_numbered_from_level=2, is_default_document=True)
+    doc = RstDocument('TutorialProject_et_dot_2', headings_numbered_from_level=2, is_default_document=True)
     doc.heading_numbers[2] = 3
     doc.heading_numbers[3] = 3
 
@@ -2207,7 +2207,10 @@ def test_Tutorial331():
     CodeBlock(
         []
         , copyfrom=workspace / '../et-micc2/' / 'et_micc2/templates/module-f90/{{cookiecutter.project_name}}/{{cookiecutter.package_name}}/f90_{{cookiecutter.module_name}}/CMakeLists.txt'
-        , filter=filter_f90_cmakelists
+        , filter=FilterCMakeLists
+            ( startline=('# Set the build type:'     , '##########')
+            , stopline =('#<< begin boilerplate code', '# only boilerplate code below')
+            )
     )
 
     Heading('Building binary extensions from C++', level=3, crosslink='building-cpp')
@@ -2248,7 +2251,7 @@ def test_Tutorial331():
     )
     CodeBlock(
         []
-        , copyfrom=Path(__file__).parent / 'dotc.cpp'
+        , copyfrom=snippets/'dotc.cpp'
         , language='c++', copyto=project_path/'et_dot/cpp_dotc/dotc.cpp'
     )
     Paragraph(
@@ -2266,11 +2269,354 @@ def test_Tutorial331():
     )
     CodeBlock(
         "micc2 build -m dotc"
-        , execute=True,
+        , execute=True, cwd=project_path
+    )
+    Paragraph(
+        f"The ``build`` command produces quit a bit of output, though typically "
+        f"less that for a Fortran binary extension module. If the source file does "
+        f"not have any syntax errors, and the build did not experience any problems, "
+        f"the package directory :file:`et_dot` will contain a binary extension "
+        f"module :file:`dotc{extension_suffix}`, along with the previously built "
+        f":file:`dotf{extension_suffix}`."
+    )
+    Paragraph(
+        "Here is some test code. It is almost exactly the same as that for the f90 "
+        "module :py:mod:`dotf`, except for the module name. Enter the test code in "
+        ":file:`ET-dot/tests/test_cpp_dotc.py`:"
+    )
+    CodeBlock(
+        []
+        , language='python'
+        , copyfrom=snippets/'test_cpp_dotc.py'
+        , copyto=project_path / 'tests/test_cpp_dotc.py'
+    )
+    Paragraph(
+        "The test passes successfully. Obviously, you should also add the other "
+        "tests we created for the Python implementation. "
+    )
+    CodeBlock(
+        "pytest tests/test_cpp_dotc.py"
+        ,execute=True, cwd=project_path
+    )
+
+def test_TutorialProject_et_dot_3():
+
+    doc = RstDocument('TutorialProject_et_dot_3', headings_numbered_from_level=2, is_default_document=True)
+    doc.heading_numbers[2] = 3
+    doc.heading_numbers[3] = 3
+
+    Include('../HYPERLINKS.rst')
+
+    Note(
+        "The Pybind11 wrappers automatically apply the same conversions as the "
+        "F2py wrappers. Here is an example where the input arrays are a plain "
+        "Python ``list`` containing ``int`` values. The wrapper converts them "
+        "on the fly into a contiguous array of ``float``valuwa (which correspond "
+        "to C++'s ``double``) and returns a ``float``:"
+    )
+    CodeBlock(
+        [ 'import et_dot'
+        , 'print(et_dot.dotc.dot([1,2],[3,4]))'
+        ]
+        , language='pycon', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "This time, however, there is no warning that the wrapper converted or "
+        "copied. As converting and copying of large is time consuming, this may "
+        "incur a non-negligable cost on your application, Moreover, if the arrays "
+        "are overwritten in the C++ code and serve for output, the result will not "
+        "be copied back, and will be lost. This will result in a bug in the client "
+        "code, as it will continue its execution with the original values. "
+    )
+
+    Heading('Controlling the build', level=4, crosslink='control-build-cpp')
+
+    Paragraph(
+        "The build parameters for our C++ binary extension module are "
+        "detailed in the file :file:`et_dot/cpp_dotc/CMakeLists.txt`, "
+        "just as in the f90 case. It contains significantly less boilerplate "
+        "code (which you should not need to touch) and provides the same "
+        "functionality. Here is the section of "
+        ":file:`et_dot/cpp_dotc/CMakeLists.txt` that you might want to adjust "
+        "to your needs:"
+    )
+    CodeBlock(
+        []
+        , copyfrom=workspace / '../et-micc2/' / 'et_micc2/templates/module-cpp/{{cookiecutter.project_name}}/{{cookiecutter.package_name}}/cpp_{{cookiecutter.module_name}}/CMakeLists.txt'
+        , filter=FilterCMakeLists
+            ( startline=('##########')
+            , stopline =('#<< begin boilerplate code')
+            )
+    )
+    Paragraph(
+        "Because we need only interface with the C++ compiler, the :file:`CMakeLists.txt` file "
+        "is simpler that for the Fortran case."
+    )
+
+def test_TutorialProject_et_dot_4():
+    doc = RstDocument('TutorialProject_et_dot_4', headings_numbered_from_level=2, is_default_document=True)
+    doc.heading_numbers[2] = 3
+    doc.heading_numbers[3] = 4
+
+    Include('../HYPERLINKS.rst')
+
+    Heading('Data type issues', level=4, crosslink='data-types')
+
+    Paragraph(
+        "When interfacing several programming languages data types require special care. "
+        "We already noted that although conversions are automatic if possible, they may "
+        "be costly. It is always more computationally efficient that the data types on "
+        "both sides (Python and respectively Fortran or C++) correspond. Here is a table "
+        "with the most relevant numeric data types in Python, Fortran and C++."
+    )
+    Table(
+        [ ['data type'       , 'Numpy(np)/Python'               , 'Fortran'  , 'C++']
+        , ['unsigned integer', 'np.uint32'                      , 'N/A'      , 'signed long int']
+        , ['unsigned integer', 'np.uint64'                      , 'N/A'      , 'signed long long int']
+        , ['signed integer'  , 'np.int32, int'                  , 'integer*4', 'signed long int']
+        , ['signed integer'  , 'np.int64'                       , 'integer*8', 'signed long long int']
+        , ['floating point'  , 'np.float32, np,single'          , 'real*4'   , 'float']
+        , ['floating point'  , 'np.float64, np.double, float'   , 'real*8'   , 'double']
+        , ['complex'         , 'np.complex64'                   , 'complex*4', 'std::complex<float>']
+        , ['complex'         , 'np.complex128'                  , 'complex*8', 'std::complex<double>']
+        ]
+    )
+    Paragraph(
+        "If there is automatic conversion between two data types in Python, e.g. "
+        "from ``float32`` to ``float64`` the wrappers around our function will "
+        "perform the conversion automatically if needed. This happens both for "
+        "Fortran and C++. However, this comes with the cost of copying and "
+        "converting, which is sometimes not acceptable."
+    )
+    Paragraph(
+        "The result of a Fortran function and a C++ function in a binary "
+        "extension module is **always copied** back to the Python variable "
+        "that will hold it. As copying large data structures is detrimental "
+        "to performance this shoud be avoided. The solution to this problem "
+        "is to write Fortran functions or subroutines and C++ functions that "
+        "accept the result variable as an argument and modify it in place, "
+        "so that the copy operaton is avoided. Consider this example of a "
+        "Fortran subroutine that computes the sum of two arrays."
+    )
+    CodeBlock(
+        []
+        , language='fortran'
+        , copyfrom=snippets / 'dotf-add.f90'
+        , copyto=project_path / 'et_dot/f90_dotf/dotf.f90'
+    )
+    CodeBlock(
+        "micc2 build --clean -m dotf"
+        , hide=True
+        , language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "The crucial issue here is that the result array ``sumab`` is "
+        "qualified as ``intent(inout)``, meaning that the ``add`` "
+        "function has both read and write access to it. This function "
+        "would be called in Python like this:"
+    )
+    Paragraph(
+        "Let us add this method to our :file:`dotf` binary extension module, "
+        "just to demonstrate its use."
+    )
+
+    CodeBlock(
+        [ 'import numpy as np'
+        , 'import et_dot'
+        , 'a = np.array([1.,2.])'
+        , 'b = np.array([3.,4.])'
+        , 'sum = np.empty(len(a),dtype=float)'
+        , 'et_dot.dotf.add(a,b, sum)'
+        , 'print(sum)'
+        ]
+        ,language='pycon', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "If ``add`` would have been qualified as as ``intent(in)``, as the "
+        "input parameters ``a`` and ``b``, ``add`` would not be able to "
+        "modify the ``sum`` array. On the other hand, and rather surprisingly, "
+        "qualifying it with ``intent(out)`` forces f2py_ to consider the "
+        "variable as a left hand side variable and define a wrapper that "
+        "in Python would be called like this:"
+    )
+    CodeBlock(
+        'sum = et_dot.dotf.add(a,b)'
+        ,language='python'
+    )
+    Paragraph(
+        "This obviously implies copying the contents of the result array to "
+        "the Python variable :file:`sum`, which, as said, may be prohibitively "
+        "expensive."
+    )
+    doc.verbose = True
+    if write:
+        doc.write(Path.home()/'workspace/et-micc2/tutorials/')
+    else:
+        print(f'$$$$$$\n{doc}\n$$$$$$')
+
+def test_TutorialProject_et_dot_5():
+    doc = RstDocument('TutorialProject_et_dot_5', headings_numbered_from_level=2, is_default_document=True)
+    doc.heading_numbers[2] = 3
+    doc.heading_numbers[3] = 4
+
+    Include('../HYPERLINKS.rst')
+
+    Paragraph(
+        "So, the general advice is: use functions to return only variables of "
+        "small size, like a single number, or a tuple, maybe even a small fixed "
+        "size array, but certainly not a large array. If you have result variables "
+        "of large size, compute them in place in parameters with ``intent(inout)``. "
+        "If there is no useful small variable to return, use a subroutine instead "
+        "of a function. Sometimes it is useful to have functions return an error "
+        "code, or the CPU time the computation used, while the result of the computation "
+        "is computed in a parameter with ``intent(inout)``, as below:"
+    )
+    CodeBlock( copyfrom= snippets / 'dotf-add2.f90'
+             , copyto  = project_path/ 'et_dot/f90_dotf/dotf.f90'
+             , language= 'fortran'
+             )
+    CodeBlock(
+        "micc2 build --clean -m dotf"
+        , hide=True
+        , language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "Note that Python does not require you to store the return value of a function. "
+        "The above ``add`` function might be called as:"
+    )
+    CodeBlock(
+        [ 'import numpy as np'
+        , 'import et_dot'
+        , 'a = np.array([1.,2.])'
+        , 'b = np.array([3.,4.])'
+        , 'sum = np.empty(len(a),dtype=float)'
+        , 'cputime = et_dot.dotf.add(a,b, sum)'
+        , 'print(cputime)'
+        , 'print(sum)'
+        ]
+        , language='pycon', execute=True, cwd=project_path
+    )
+
+    """
+    
+    """
+    doc.verbose = True
+    if write:
+        doc.write(Path.home()/'workspace/et-micc2/tutorials/')
+    else:
+        print(f'$$$$$$\n{doc}\n$$$$$$')
+
+def test_TutorialProject_et_dot_6():
+    doc = RstDocument('TutorialProject_et_dot_6', headings_numbered_from_level=2, is_default_document=True)
+    doc.heading_numbers[2] = 3
+    doc.heading_numbers[3] = 4
+
+    Include('../HYPERLINKS.rst')
+
+    Paragraph(
+        "Computing large arrays in place can be accomplished in C++ quite "
+        "similarly. As Python does not have a concept of ``const`` parameters, "
+        "all parameters are writable by default. However, when casting the "
+        "memory of the arrays to pointers, we take care to cast to "
+        "``double *`` or ``double const *`` depending on the intended use of"
+        "the arrays, in order to prevent errors."
+    )
+    CodeBlock( copyfrom= snippets / 'dotc-add.cpp'
+             , copyto  = project_path/ 'et_dot/cpp_dotc/dotc.cpp'
+             , language= 'c++'
+             )
+    CodeBlock(
+        "micc2 build --clean -m dotc"
+        , hide=True
+        , language='bash', execute=True, cwd=project_path
+    )
+
+    doc.verbose = True
+    if write:
+        doc.write(Path.home()/'workspace/et-micc2/tutorials/')
+    else:
+        print(f'$$$$$$\n{doc}\n$$$$$$')
+
+
+def test_TutorialProject_et_dot_7():
+    doc = RstDocument('TutorialProject_et_dot_7', headings_numbered_from_level=2, is_default_document=True)
+    doc.heading_numbers[2] = 3
+    doc.heading_numbers[3] = 4
+
+    Include('../HYPERLINKS.rst')
+
+    Heading('Documenting binary extension modules', level=3, crosslink='document-binary-extensions')
+
+    Paragraph(
+        "For Python modules the documentation is automatically extracted from "
+        "the doc-strings in the module. However, when it comes to documenting "
+        "binary extension modules, this does not seem a good option. Ideally, "
+        "the source files :file:`ET-dot/et_dot/f90_dotf/dotf.f90` and "
+        ":file:`ET-dot/et_dot/cpp_dotc/dotc.cpp` should document the Fortran "
+        "functions and subroutines, and C++ functions, respectively, rather "
+        "than the Python interface. Yet, from the perspective of ET-dot being a "
+        "Python project, the user is only interested in the documentation of the "
+        "Python interface to those functions and subroutines. Therefore, Micc2_ "
+        "requires you to document the Python interface in separate :file:`.rst` "
+        "files:"
+    )
+    List(
+        [ ':file:`ET-dot/et_dot/f90_dotf/dotf.rst`'
+        , ':file:`ET-dot/et_dot/cpp_dotc/dotc.rst`'
+        ]
+    )
+    Paragraph(
+        "their contents could look like this: for :file:`ET-dot/et_dot/f90_dotf/dotf.rst`:"
+    )
+    CodeBlock(
+        [ 'Module et_dot.dotf'
+        , '******************'
+        , ''
+        , 'Module (binary extension) :py:mod:`dotf`, built from fortran source.'
+        , ''
+        , '.. function:: dot(a,b)'
+        , '   :module: et_dot.dotf'
+        , ''
+        , '   Compute the dot product of ``a`` and ``b``.'
+        , ''
+        , '   :param a: 1D Numpy array with ``dtype=float``'
+        , '   :param b: 1D Numpy array with ``dtype=float``'
+        , '   :returns: the dot product of ``a`` and ``b``'
+        , '   :rtype: ``float``'
+        ]
+        , language='rst'
+    )
+    Paragraph(
+        "and for :file:`ET-dot/et_dot/cpp_dotc/dotc.rst`:"
+    )
+    CodeBlock(
+        [ 'Module et_dot.dotc'
+        , '******************'
+        , ''
+        , 'Module (binary extension) :py:mod:`dotc`, built from C++ source.'
+        , ''
+        , '.. function:: dot(a,b)'
+        , '   :module: et_dot.dotc'
+        , ''
+        , '   Compute the dot product of ``a`` and ``b``.'
+        , ''
+        , '   :param a: 1D Numpy array with ``dtype=float``'
+        , '   :param b: 1D Numpy array with ``dtype=float``'
+        , '   :returns: the dot product of ``a`` and ``b``'
+        , '   :rtype: ``float``'
+        ]
+        , language='rst'
+    )
+    Paragraph(
+        "The (html) documentation is build as always and found in "
+        ":file:`docs/_build/html/index.html`. It can be opened in "
+        "your favorite browser."
+    )
+    CodeBlock(
+        "micc2 doc"
+        , execute=True, cwd=project_path
     )
     """
-
-
 
     """
     doc.verbose = True
@@ -2290,10 +2636,10 @@ if __name__ == "__main__":
     # set write to False for debugging
     # write = False
     if len(sys.argv) > 1:
-        index = sys.argv[1]
-        the_test_you_want_to_debug = eval(f'test_Tutorial{index}')
+        tutorial = sys.argv[1]
+        the_test_you_want_to_debug = eval(f'test_{tutorial}')
     else:
-        the_test_you_want_to_debug = test_Tutorial331
+        the_test_you_want_to_debug = test_Tutorial34
 
     print("__main__ running", the_test_you_want_to_debug)
     the_test_you_want_to_debug()
