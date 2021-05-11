@@ -2087,7 +2087,7 @@ def filter_f90_cmakelists(lines):
             start = line.startswith(startline[section])
         if start:
             if line.strip():
-                lines_kept.append(line[:-1])
+                lines_kept.append(line)
     return lines_kept
 
 
@@ -2209,22 +2209,70 @@ def test_Tutorial331():
         , copyfrom=workspace / '../et-micc2/' / 'et_micc2/templates/module-f90/{{cookiecutter.project_name}}/{{cookiecutter.package_name}}/f90_{{cookiecutter.module_name}}/CMakeLists.txt'
         , filter=filter_f90_cmakelists
     )
+
+    Heading('Building binary extensions from C++', level=3, crosslink='building-cpp')
+
+    Paragraph(
+        "To illustrate building binary extension modules from C++ code, let us also "
+        "create a C++ implementation for the dot product. Analogously to our "
+        ":py:mod:`dotf` module we will call the C++  module :py:mod:`dotc`, where the "
+        "``c`` refers to C++, naturally."
+    )
+    Paragraph(
+        "Use the ``micc2 add`` command to add a cpp module:"
+    )
+    CodeBlock(
+        "micc2 add dotc --cpp"
+        , language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "As before, the output tells us where we need to add the details of the "
+        "component we added to our project. "
+    )
+    Paragraph(
+        "Numpy does not have an equivalent of F2py_ to create wrappers for C++ "
+        "code. Instead, Micc2_ uses Pybind11_ to generate the wrappers. For an "
+        "excellent overview of this topic, check out "
+        "`Python & C++, the beauty and the beast, dancing together <https://channel9.msdn.com/Events/CPP/CppCon-2016/CppCon-2016-Introduction-to-C-python-extensions-and-embedding-Python-in-C-Apps>`_. "
+        "Pybind11_ has a lot of 'automagical' features, and the fact that it is a "
+        "header-only C++ library makes its use much simpler than, e.g., "
+        "`Boost.Python <https://www.boost.org/doc/libs/1_70_0/libs/python/doc/html/index.html>`_, "
+        "which offers very similar features, but is not header-only and additionally "
+        "depends on the python version you want to use. Consequently, you need a "
+        "build a :file:`Boost.Python` library for every Python version you want "
+        "to use."
+    )
+    Paragraph(
+        "Enter this code in the C++ source file :file:`ET-dot/et_dot/cpp_dotc/dotc.cpp`. "
+        "(you may also remove the example code in that file.)"
+    )
+    CodeBlock(
+        []
+        , copyfrom=Path(__file__).parent / 'dotc.cpp'
+        , language='c++', copyto=project_path/'et_dot/cpp_dotc/dotc.cpp'
+    )
+    Paragraph(
+        "Obviously the C++ source code is more involved than its Fortran equivalent "
+        "in the previous section. This is because f2py_ is a program performing clever "
+        "introspection into the Fortran source code, whereas pybind11_ is just "
+        "a C++ template library and as such it needs a little help from the user. "
+        "This is, however, compensated by the flexibility of Pybind11_."
+    )
+    Paragraph(
+        "We can now build the module. By default ``micc2 build`` builds all "
+        "binary extension modules in the project. As we do not want to rebuild "
+        "the :py:mod:`dotf` module, we add ``-m dotc`` to the command line, to "
+        "indicate that only module :py:mod:`dotc` must be built:"
+    )
+    CodeBlock(
+        "micc2 build -m dotc"
+        , execute=True,
+    )
     """
- .. _building-cpp:
 
-2.4 Building binary extensions from C++
----------------------------------------
-To illustrate building binary extension modules from C++ code, let us also create a
-C++ implementation for the dot product. Such modules are called *cpp modules*.
-Analogously to our :py:mod:`dotf` module we will call the cpp module :py:mod:`dotc`,
-the ``c`` referring to C++.
 
-Use the ``micc add`` command to add a cpp module:
 
-.. code-block:: bash
-
-    > micc add dotc --cpp
-   """
+    """
     doc.verbose = True
     if write:
         doc.write(Path.home()/'workspace/et-micc2/tutorials/')

@@ -388,10 +388,16 @@ class CodeBlock(RstItem):
         if self.copyfrom:
             with self.copyfrom.open(mode='r') as f:
                 self.lines = f.readlines()
+            # Remove trailing newlines and withspace
+            for l,line in enumerate(self.lines):
+                self.lines[l] = line.rstrip()
             if self.filter:
                 self.lines = self.filter(self.lines)
 
         if self.execute:
+            if not self.language:
+                self.language='bash' # default
+
             if self.setup:
                 self.setup()
             if self.language == 'bash':
@@ -558,7 +564,7 @@ class TextWrapper:
     def __init__(self,width=72):
         """"""
         self.width = width
-        self.lookahead = 10
+        self.lookahead = 15
 
     def wrap(self, text):
         """"""
