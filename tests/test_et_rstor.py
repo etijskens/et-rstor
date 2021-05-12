@@ -2609,19 +2609,22 @@ def test_TutorialProject_et_dot_7():
         "your project directory in :file:`docs/_build/html/index.html`. "
         "It can be opened in your favorite browser."
     )
-    # this is not necessary for building the documentation...
-    # CodeBlock(
-    #     language='fortran'
-    #     , copyfrom=snippets / 'dotf.f90'
-    #     , copyto=project_path/'et_dot/f90_dotf/dotf.f90'
-    #     , hide=True
-    # )
-    # CodeBlock(
-    #     language='c++'
-    #     , copyfrom=snippets / 'dotc.cpp'
-    #     , copyto=project_path/'et_dot/cpp_dotc/dotc.cpp'
-    #     , hide=True
-    # )
+    # we have overwritten dotf and dotc. now we put them back
+    CodeBlock(
+        hide=True
+        , copyfrom=snippets / 'dotf.f90'
+        , copyto=project_path/'et_dot/f90_dotf/dotf.f90'
+    )
+    CodeBlock(
+        hide=True
+        , copyfrom=snippets / 'dotc.cpp'
+        , copyto=project_path/'et_dot/cpp_dotc/dotc.cpp'
+    )
+    CodeBlock(
+        'micc2 build --clean'
+        , execute=True, cwd=project_path, hide=True
+    )
+
     doc.verbose = True
     if write:
         doc.write(Path.home()/'workspace/et-micc2/tutorials/')
@@ -2629,7 +2632,7 @@ def test_TutorialProject_et_dot_7():
         print(f'$$$$$$\n{doc}\n$$$$$$')
 
 def test_TutorialProject_et_dot_8():
-    doc = RstDocument('TutorialProject_et_dot_7', headings_numbered_from_level=2, is_default_document=True)
+    doc = RstDocument('TutorialProject_et_dot_8', headings_numbered_from_level=2, is_default_document=True)
     doc.heading_numbers[2] = 3
 
     Include('../HYPERLINKS.rst')
@@ -2654,36 +2657,176 @@ def test_TutorialProject_et_dot_8():
         "As the output shows, it creates a file :file:`foo.py` in the package "
         "directory :file:`et_dot` of our :file:`ET-dot` project. In this file "
         "you can add all your `foo` related code. Micc2_ ensures that this "
-        "submodule is automatically imported in :file:`et_dot`:"
+        "submodule is automatically imported in :file:`et_dot`. As usual, Micc2_ "
+        "adds working example code, in this case a *hello world* method, named "
+        ":py:meth:`greet`:"
     )
     CodeBlock(
-        [ '# In file `et_dot/__init__`:'
-        , '# This statement is added by Micc2_'
-        , 'import et_dot.foo'
-        , '# Using method `foo_fun` from submodule `foo.py`:'
-        , 'et_dot.foo.foo_fun()'
+        [ 'import et_dot'
+        , 'print(et_dot.foo.greet("from foo"))'
         ]
+        , language='pycon', execute=True, cwd=project_path
+    )
+    CodeBlock(
+        "micc2 mv foo"
+        , execute=True, cwd=project_path
+        , hide=True
+    )
+    Paragraph(
+        "Alternatively, we can add a Python submodule with a package structure:"
+    )
+    CodeBlock(
+        "micc2 add foo --package"
+        , execute=True, cwd=project_path
+    )
+    Paragraph(
+        "As the output shows, this creates a directory :file:`foo` containing "
+        "the file :file:`__init__.py` in the package directory :file:`et_dot` "
+        "of our :file:`ET-dot` project, for all your `foo` related code. Again, "
+        "Micc2_ ensures that this submodule is automatically imported in "
+        ":file:`et_dot` and added working example code, with the same "
+        ":py:meth:`greet` meethod as above, which works in exactly the same way:"
+    )
+    CodeBlock(
+        [ 'import et_dot'
+        , 'from importlib import reload     #hide#'
+        , 'et_dot = reload(et_dot)          #hide#'
+        , 'print(et_dot.foo.greet("from foo"))'
+        ]
+        , language='pycon', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "Micc2_ also added test code for this submodule in file "
+        ":file:`tests/test_foo.py` (irrespective of whether :file:`foo` has a module "
+        "or package structure. The test passes, of course:"
+    )
+    CodeBlock(
+        "pytest tests/test_foo.py -s -v"
+        , execute=True, cwd=project_path
+    )
+    CodeBlock(
+        "micc2 mv foo"
+        , execute=True, cwd=project_path
+        , hide=True
+    )
+    Paragraph(
+        "Furthermore. Micc2_ automatically adds documentation entries for submodule "
+        ":file:`foo` in :file:`API.rst`. Calling ``micc2 doc`` will automatically "
+        "extract documentation from the doc-strings in :file:`foo`. So, writing "
+        "doc-strings in :file:`foo.py` or :file:`foo/__init__.py` is all you need "
+        "to do."
+    )
+
+    Heading('Adding a Python Command Line Interface', level=3, crosslink='clis')
+
+    Paragraph(
+        "*Command Line Interfaces* are Python scripts in a Python package that are "
+        "installed as executable programs when the package is installed.  E.g. Micc2_ "
+        "is a CLI. Installing package :file:`et-micc2` installs the ``micc2`` as an "
+        "executable program. CLIs come in two flavors, single command CLIs and CLIs "
+        "with subcommands. Single command CLIs perform a single task, which can be "
+        "modified by optional parameters and flags. CLIs with subcommands can performs "
+        "different, usually related, tasks by selecting an appropriate subcommand. "
+        "Git_ and Micc2_ are CLIs with subcommands. You can add a single command CLI "
+        "named ``myapp`` to your project with the command:"
+    )
+    CodeBlock(
+        "micc2 add myapp --cli"
+        , language='bash'
+    )
+    Paragraph(
+        "and"
+    )
+    CodeBlock(
+        "micc2 add myapp --clisub"
+        , language='bash'
+    )
+    Paragraph(
+        "for a CLI with subcommands. Micc2 adds the necessary files, containing "
+        "working example code and tests, as well as a documentation entry in "
+        ":file:`APPS.rst`. The documentation will be extracted automatically "
+        "from doc-strings and help-strings (these are explained below). "
+    )
+
+    Heading('CLI example', level=4, crosslink='cli-example')
+
+    Paragraph(
+        "Assume that we need quite often to read two arrays from file and "
+        "compute their dot product, and that we want to execute this operation as:"
+    )
+    CodeBlock(
+        [ "> dotfiles file1 file2"
+        , "dot(file1,file2) = 123.456"
+        ]
+        , language='bash', prompt=''
+    )
+    Paragraph(
+        "The second line is the output that we expect."
+    )
+    Paragraph(
+        ":file:`dotfiles` is, obviously a single command CLI, so we add a CLI "
+        "component with the ``--cli`` flag:"
+    )
+    CodeBlock(
+        "micc2 add dotfiles --cli"
+        , execute=True, cwd=project_path
+    )
+    Paragraph(
+        "As usual Micc2 tells us where to add the source code for the CLI, and "
+        "where to add the test code for it. Furthermore, Micc2_ expects us to use "
+        "the Click_ package for implementing the CLI, a very practical and flexible "
+        "package which is well documented. The example code in "
+        ":file:`et_dot/cli_dotfiles.py` is already based on Click_, and contains an "
+        "example of a single command CLI or a Cli with subcommands,m depending on "
+        "the flag you used. Here is the proposed implementation of our :file:`dotfiles` "
+        "CLI:"
+    )
+    CodeBlock( lines=[]
+        , language='python'
+        , copyfrom=snippets/'cli_dotfiles.py'
+        , copyto=project_path/'et_dot/cli_dotfiles.py'
+    )
+    Paragraph(
+        "Click_ uses decorators to add arguments and options to turn a method, here "
+        ":file:`main()` in to the command. Understanding decorators is not really "
+        "necessary, but if you are intrigued, check out "
+        "`Primer on Python decorators <https://realpython.com/primer-on-python-decorators/>`_. "
+        "Otherwise, just follow the Click_ documentation for how to use the Click_ "
+        "decorators to create nice CLIs. "
+    )
+    for i in (1,2):
+        CodeBlock( lines=[]
+            , copyfrom=snippets/f'array{i}.txt'
+            , copyto=project_path/f'tests/array{i}.txt'
+            , hide=True
+        )
+    Paragraph(
+        "Click_ provides a lot of practical features, such as an automatic help "
+        "function which is built from the doc-string of the command method, and "
+        "the ``help`` parameters of the options. Sphinx_click_ does the same to "
+        "extract documentation for your CLI."
+    )
+    CodeBlock(
+        [ "python et_dot/cli_dotfiles.py --help"
+        , "python et_dot/cli_dotfiles.py tests/array1.txt tests/array2.txt"
+        , "python et_dot/cli_dotfiles.py tests/array1.txt tests/array2.txt -v"
+        , "python et_dot/cli_dotfiles.py tests/array1.txt tests/array2.txt -vv"
+        ]
+        , language='bash', execute=True, cwd=project_path
+    )
+    Paragraph(
+        "Here, we did not exactly call the CLI as ``dotfiles``, but that is "
+        "because the package is not yet installed. The installed executable "
+        "``dotfiles`` would just wrap the command as ``python path/to/et_dot/cli_dotfiles.py``. "
+        "Note, that the verbosity parameter is using a nice Click_ feature: by "
+        "adding more ``v``s the verbosity increases."
     )
     # CodeBlock(
-    #     "micc2 mv foo"
+    #     "micc2 mv dot-files"
     #     , execute=True, cwd=project_path
     #     , hide=True
     # )
-
-
     """
-Tutorial 3: Adding Python components
-====================================
-
-3.1 Adding a Python module
---------------------------
-
-Just as one can add binary extension modules to a package, one can add python modules.
-
-.. code-block:: bash
-
-   > micc add foo --py 
-
     """
     doc.verbose = True
     if write:
