@@ -37,9 +37,7 @@ workspace = Path.home() / 'software/dev/workspace/Tutorials'
 snippets = Path(__file__).parent / '../snippets'
 
 def test_TutorialGettingStarted():
-    """Tutorial-1."""
 
-    workspace = Path.home() / 'software/dev/workspace/Tutorials'
     if workspace.exists():
         shutil.rmtree(workspace)
     workspace.mkdir(parents=True,exist_ok=True)
@@ -962,7 +960,7 @@ def test_TutorialProject_et_dot_1():
     workspace.mkdir(parents=True, exist_ok=True)
 
     doc = RstDocument('TutorialProject_et_dot_1', headings_numbered_from_level=2, is_default_document=True)
-    doc.heading_numbers[2] = 2
+    doc.heading_numbers[2] = 1
 
     Include('../HYPERLINKS.rst')
 
@@ -1875,31 +1873,10 @@ def test_TutorialProject_et_dot_1():
         "or IDE and replace the existing example code in the Fortran source file with:"
     )
     CodeBlock(
-        [ 'function dot(a,b,n)'
-        , '  ! Compute the dot product of a and b'
-        , '    implicit none'
-        , '  !'
-        , '  !-----------------------------------------------'
-        , '    integer*4              , intent(in)    :: n'
-        , '    real*8   , dimension(n), intent(in)    :: a,b'
-        , '    real*8                                 :: dot'
-        , '  ! declare local variables'
-        , '    integer*4 :: i'
-        , '  !-----------------------------------------------'
-        , '    dot = 0.'
-        , '    do i=1,n'
-        , '        dot = dot + a(i) * b(i)'
-        , '    end do'
-        , 'end function dot'
-        ]
-        , language='fortran', copyto=project_path / 'et_dot/f90_dotf/dotf.f90'
+        language='fortran'
+        , copyfrom=snippets / 'dotf.f90'
+        , copyto=project_path / 'et_dot/f90_dotf/dotf.f90'
     )
-    def annoying(output):
-        lines = output.splitlines(keepends=True)
-        keep_lines = []
-        for line in lines:
-            pass
-        return '\n'.join(keep_lines)
     Paragraph(
         "The binary extension module can now be built by running ``micc2 build``. "
         "This produces a lot of output, which comes from cmake, f2py and the "
@@ -2071,6 +2048,12 @@ def test_TutorialProject_et_dot_1():
         "Obviously, you should also add the other "
         "tests we created for the Python implementation. "
     )
+    if write:
+        doc.write(Path.home()/'workspace/et-micc2/tutorials/')
+    else:
+        print('>>>>>>')
+        print(doc, end='')
+        print('<<<<<<')
 
 
 class FilterCMakeLists:
@@ -2208,8 +2191,8 @@ def test_TutorialProject_et_dot_2():
         []
         , copyfrom=workspace / '../et-micc2/' / 'et_micc2/templates/module-f90/{{cookiecutter.project_name}}/{{cookiecutter.package_name}}/f90_{{cookiecutter.module_name}}/CMakeLists.txt'
         , filter=FilterCMakeLists
-            ( startline=('# Set the build type:'     , '##########')
-            , stopline =('#<< begin boilerplate code', '# only boilerplate code below')
+            ( startline=['# Set the build type:'     , '##########']
+            , stopline =['#<< begin boilerplate code', '# only boilerplate code below']
             )
     )
 
@@ -2298,11 +2281,18 @@ def test_TutorialProject_et_dot_2():
         "pytest tests/test_cpp_dotc.py"
         ,execute=True, cwd=project_path
     )
+    if write:
+        doc.write(Path.home()/'workspace/et-micc2/tutorials/')
+    else:
+        print('>>>>>>')
+        print(doc, end='')
+        print('<<<<<<')
+
 
 def test_TutorialProject_et_dot_3():
 
     doc = RstDocument('TutorialProject_et_dot_3', headings_numbered_from_level=2, is_default_document=True)
-    doc.heading_numbers[2] = 3
+    doc.heading_numbers[2] = 2
     doc.heading_numbers[3] = 3
 
     Include('../HYPERLINKS.rst')
@@ -2360,7 +2350,7 @@ def test_TutorialProject_et_dot_4():
 
     Include('../HYPERLINKS.rst')
 
-    Heading('Data type issues', level=4, crosslink='data-types')
+    Heading('Data type issues', level=3, crosslink='data-types')
 
     Paragraph(
         "When interfacing several programming languages data types require special care. "
@@ -2456,7 +2446,7 @@ def test_TutorialProject_et_dot_4():
 
 def test_TutorialProject_et_dot_5():
     doc = RstDocument('TutorialProject_et_dot_5', headings_numbered_from_level=2, is_default_document=True)
-    doc.heading_numbers[2] = 3
+    doc.heading_numbers[2] = 2
     doc.heading_numbers[3] = 4
 
     Include('../HYPERLINKS.rst')
@@ -2508,7 +2498,7 @@ def test_TutorialProject_et_dot_5():
 
 def test_TutorialProject_et_dot_6():
     doc = RstDocument('TutorialProject_et_dot_6', headings_numbered_from_level=2, is_default_document=True)
-    doc.heading_numbers[2] = 3
+    doc.heading_numbers[2] = 2
     doc.heading_numbers[3] = 4
 
     Include('../HYPERLINKS.rst')
@@ -2540,8 +2530,8 @@ def test_TutorialProject_et_dot_6():
 
 def test_TutorialProject_et_dot_7():
     doc = RstDocument('TutorialProject_et_dot_7', headings_numbered_from_level=2, is_default_document=True)
-    doc.heading_numbers[2] = 3
-    doc.heading_numbers[3] = 4
+    doc.heading_numbers[2] = 2
+    doc.heading_numbers[3] = 5
 
     Include('../HYPERLINKS.rst')
 
@@ -2608,15 +2598,91 @@ def test_TutorialProject_et_dot_7():
         , language='rst'
     )
     Paragraph(
-        "The (html) documentation is build as always and found in "
-        ":file:`docs/_build/html/index.html`. It can be opened in "
-        "your favorite browser."
+        "The (html) documentation is build as always:"
     )
     CodeBlock(
         "micc2 doc"
         , execute=True, cwd=project_path
     )
+    Paragraph(
+        "As the output shows, the documentation is found in "
+        "your project directory in :file:`docs/_build/html/index.html`. "
+        "It can be opened in your favorite browser."
+    )
+    # this is not necessary for building the documentation...
+    # CodeBlock(
+    #     language='fortran'
+    #     , copyfrom=snippets / 'dotf.f90'
+    #     , copyto=project_path/'et_dot/f90_dotf/dotf.f90'
+    #     , hide=True
+    # )
+    # CodeBlock(
+    #     language='c++'
+    #     , copyfrom=snippets / 'dotc.cpp'
+    #     , copyto=project_path/'et_dot/cpp_dotc/dotc.cpp'
+    #     , hide=True
+    # )
+    doc.verbose = True
+    if write:
+        doc.write(Path.home()/'workspace/et-micc2/tutorials/')
+    else:
+        print(f'$$$$$$\n{doc}\n$$$$$$')
+
+def test_TutorialProject_et_dot_8():
+    doc = RstDocument('TutorialProject_et_dot_7', headings_numbered_from_level=2, is_default_document=True)
+    doc.heading_numbers[2] = 3
+
+    Include('../HYPERLINKS.rst')
+
+    Heading('Adding Python submodules', level=2, crosslink='python-submodules')
+
+    Paragraph(
+        "Adding binary extension (sub)module is important for adding "
+        "implementations in Fortran or C++ for performance reasons. "
+        "For larger projects it is sometimes practical to be able to "
+        "organize your Python code in different files, e.g. one file "
+        "for each Python class. Micc2_ allows your to add Python "
+        "submodules to your project. These can have a module or a "
+        "package stucture. This command adds a module :file:`foo.py` "
+        "to your project:"
+    )
+    CodeBlock(
+        "micc2 add foo --py"
+        , execute=True, cwd=project_path
+    )
+    Paragraph(
+        "As the output shows, it creates a file :file:`foo.py` in the package "
+        "directory :file:`et_dot` of our :file:`ET-dot` project. In this file "
+        "you can add all your `foo` related code. Micc2_ ensures that this "
+        "submodule is automatically imported in :file:`et_dot`:"
+    )
+    CodeBlock(
+        [ '# In file `et_dot/__init__`:'
+        , '# This statement is added by Micc2_'
+        , 'import et_dot.foo'
+        , '# Using method `foo_fun` from submodule `foo.py`:'
+        , 'et_dot.foo.foo_fun()'
+        ]
+    )
+    # CodeBlock(
+    #     "micc2 mv foo"
+    #     , execute=True, cwd=project_path
+    #     , hide=True
+    # )
+
+
     """
+Tutorial 3: Adding Python components
+====================================
+
+3.1 Adding a Python module
+--------------------------
+
+Just as one can add binary extension modules to a package, one can add python modules.
+
+.. code-block:: bash
+
+   > micc add foo --py 
 
     """
     doc.verbose = True
@@ -2624,7 +2690,6 @@ def test_TutorialProject_et_dot_7():
         doc.write(Path.home()/'workspace/et-micc2/tutorials/')
     else:
         print(f'$$$$$$\n{doc}\n$$$$$$')
-
 
 # ==============================================================================
 # The code below is for debugging a particular test in eclipse/pydev.
