@@ -273,7 +273,7 @@ class Image(RstItem):
 
 
     def rstor(self):
-        self.rst = f'.. include:: {self.filepath}\n\n'
+        self.rst = f'.. image:: {self.filepath}\n\n'
 
 
 ####################################################################################################
@@ -415,8 +415,8 @@ class CodeBlock(RstItem):
                                                       , stderr=self.stderr
                                                       , shell=True
                                                       )
+                    output = completed_process.stdout.decode('utf-8')
                     if not self.hide:
-                        output = completed_process.stdout.decode('utf-8')
                         if self.indent:
                             output = self.indent + output.replace('\n', '\n'+self.indent)
                         self.rst += output+'\n'
